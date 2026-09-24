@@ -68,7 +68,7 @@
     const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
     // Segments each pixel into background, hair, body skin, face skin, clothes, other.
     const SEGMENT_MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite';
-    const HAIR_CATEGORY = 1, BODY_SKIN = 2, CLOTHES = 4;
+    const HAIR_CATEGORY = 1, BODY_SKIN = 2, FACE_SKIN = 3, CLOTHES = 4;
 
     const $ = id => document.getElementById(id);
     const video = $('video'), canvas = $('canvas'), hairCanvas = $('hairCanvas');
@@ -308,6 +308,7 @@
     const BINS = 72;                 // directions around the head used to trace outlines
     const MAX_ANGLE = 1.95;          // radians either side of straight up (~112°)
     const LOCKS = MOBILE ? 140 : 280; // simulated guide strands per person
+    const BACK_LOCKS = MOBILE ? 40 : 80; // more guides hanging from the back of the head
     const NODES = MOBILE ? 11 : 14;  // segments per guide strand
     // Segments get longer towards the tip: short ones near the root let the hair bend
     // closely round the head, longer ones further down keep the cost down.
@@ -382,9 +383,26 @@
           stiffness: 0.5 + rnd() * 0.5,
           // About half the locks at the sides fall in front of the shoulders, framing the face;
           // the rest fall behind the shoulders and neck, the way long hair is usually worn.
-          front: Math.abs(angle) > 1.0 && rnd() < 0.5
+          front: Math.abs(angle) > 1.0 && rnd() < 0.5,
+          back: false
         };
       });
+      // Hair from the back of the head: it hangs straight down behind the head and neck, so
+      // it shows either side of the neck but never in front of the neck or face.
+      for (let i = 0; i < BACK_LOCKS; i++) {
+        const angle = (rnd() * 2 - 1) * 1.45;
+        locks.push({
+          angle,
+          side: angle === 0 ? 1 : Math.sign(angle),
+          curlAmp: 0.004 + rnd() * 0.012,
+          curlFreq: 4 + rnd() * 9,
+          phase: rnd() * Math.PI * 2,
+          lengthF: 0.85 + rnd() * 0.3,
+          stiffness: 0.5 + rnd() * 0.5,
+          front: false,
+          back: true
+        });
+      }
       const strands = Array.from({ length: 5000 }, () => {
         const li = Math.floor(rnd() * locks.length), lock = locks[li];
         return {
@@ -569,8 +587,8 @@
           }
           if (colours.length > 20) st.palette = paletteFrom(colours);
         }
-        // Trace their neck and shoulders: in each column across the body, the first body-skin
-        // or clothing pixel below the chin.
+        // Trace their neck and shoulders: in each column across the body, the first skin or
+        // clothing pixel from about chin height down (the neck is often labelled as face skin).
         for (let c = 0; c < SHOULDER_BINS; c++) {
           const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
           for (let d = 0.55; d < 3; d += 0.02) {
@@ -578,7 +596,7 @@
             const mx = Math.round(x * mw / w), my = Math.round(y * mh / h);
             if (mx < 0 || my < 0 || mx >= mw || my >= mh) break;
             const cat = cats[my * mw + mx];
-            if (cat === BODY_SKIN || cat === CLOTHES) {
+            if (cat === BODY_SKIN || cat === FACE_SKIN || cat === CLOTHES) {
               st.shoulders[c] = st.ready ? st.shoulders[c] + (d - st.shoulders[c]) * 0.35 : d;
               break;
             }
@@ -597,6 +615,15 @@
       const edgeR = sampleBins(st.outline, angle), lineR = sampleBins(st.hairline, angle);
       const rootR = lineR + Math.max(0, edgeR - lineR) * depth * 0.97;
       return { rootR, edgeR, scalp: Math.max(0, edgeR - rootR) };
+    }
+
+    // Where a lock or strand starts hanging free, as a distance from the head's centre in face
+    // heights, and how much of its length is used up before that. Back-of-head hair starts
+    // behind the head and hangs from there; the rest leaves the scalp at the edge of the hair.
+    function hangStart(st, angle, depth, back) {
+      if (back) return { r: sampleBins(st.outline, angle) * 0.78, used: 0.1 };
+      const g = strandGeometry(st, angle, depth);
+      return { r: g.edgeR, used: g.scalp };
     }
 
     // Head-local directions for an angle around the head: outwards, and along the scalp
@@ -638,6 +665,7 @@
 
       for (let n = 0; n < count; n++) {
         const s = strands[n], L = locks[s.li];
+        if (L.back) continue;
         const g = strandGeometry(st, s.angle, s.depth);
         // Run a little past the edge of the hair so the strands meet the hanging hair cleanly.
         const scalp = Math.min(total * s.lengthF, (g.scalp + 0.03) * S);
@@ -767,15 +795,16 @@
 
       locks.forEach((L, li) => {
         const G = st.guides[li];
-        const geo = strandGeometry(st, L.angle, 0.5);
-        const free = total * L.lengthF - geo.scalp * S;
+        const start = hangStart(st, L.angle, 0.5, L.back);
+        const free = total * L.lengthF - start.used * S;
         G.free = free;
         if (free <= S * 0.01) { G.init = false; return; }
         for (let i = 0; i < NODES; i++) segs[i] = free * SEG_WEIGHTS[i];
         const [ox, oy] = outward(L.angle), [tx, ty] = alongScalp(L.angle, L.side);
-        const [ax, ay] = toScreen(head, ox * geo.edgeR * S, oy * geo.edgeR * S);
-        // Leaving the scalp along its surface, away from the parting.
-        const dx = tx * rx - ty * head.ux, dy = tx * ry - ty * head.uy;
+        const [ax, ay] = toScreen(head, ox * start.r * S, oy * start.r * S);
+        // Leaving the scalp along its surface, away from the parting; back-of-head hair
+        // just hangs straight down.
+        const dx = L.back ? -head.ux : tx * rx - ty * head.ux, dy = L.back ? -head.uy : tx * ry - ty * head.uy;
         const p = G.p, q = G.q;
 
         if (!G.init || jumped) {
@@ -816,6 +845,8 @@
           p[2] += (ax + dx * segs[0] - p[2]) * 0.7 * L.stiffness;
           p[3] += (ay + dy * segs[0] - p[3]) * 0.7 * L.stiffness;
 
+          // Back-of-head hair hangs behind the head and neck, so nothing collides with it.
+          if (L.back) continue;
           for (let i = 1; i <= NODES; i++) {
             const k = i * 2;
             // Outside their own head-and-hair outline, sitting just on top of it...
@@ -859,13 +890,13 @@
       for (let n = 0; n < count; n++) {
         const s = strands[n], L = locks[s.li], G = st.guides[s.li];
         if (G.free <= S * 0.01 || L.front !== front) continue;
-        const geo = strandGeometry(st, s.angle, s.depth);
-        const free = total * s.lengthF - geo.scalp * S;
+        const start = hangStart(st, s.angle, s.depth, L.back);
+        const free = total * s.lengthF - start.used * S;
         if (free <= 0) continue;
         const ratio = Math.min(1, free / G.free);
-        // Where this strand leaves the scalp, relative to its guide.
+        // Where this strand starts hanging, relative to its guide.
         const [ox, oy] = outward(s.angle);
-        const [ex, ey] = toScreen(head, ox * geo.edgeR * S, oy * geo.edgeR * S);
+        const [ex, ey] = toScreen(head, ox * start.r * S, oy * start.r * S);
         const rx0 = ex - G.p[0], ry0 = ey - G.p[1];
         if (Math.hypot(rx0, ry0) > S * 0.12) continue; // too far from its guide to follow it
         for (let j = 0; j <= NODES; j++) {
@@ -889,7 +920,7 @@
       strokeHair(hairCtx, st.palette, paths, body, width, S * 0.028);
     }
 
-    // Hide whatever has been drawn behind a person's neck and shoulders.
+    // Hide whatever has been drawn behind a person's neck, shoulders, face and forehead.
     function cutBehindBody(t) {
       const st = t.hair, head = t.m.head, S = head.size;
       const alpha = hairCtx.globalAlpha;
@@ -904,6 +935,19 @@
       for (const [x, y] of [[3, st.shoulders[SHOULDER_BINS - 1]], [3, 8], [-3, 8], [-3, st.shoulders[0]]]) {
         hairCtx.lineTo(...toScreen(head, x * S, y * S));
       }
+      hairCtx.closePath();
+      hairCtx.fill();
+      // The back-of-head hair is also behind the face and forehead, up to where their hair starts.
+      hairCtx.beginPath();
+      for (let i = 0; i < BINS; i++) {
+        const [ox, oy] = outward(binAngle(i)), r = st.hairline[i] * S;
+        const [x, y] = toScreen(head, ox * r, oy * r);
+        i ? hairCtx.lineTo(x, y) : hairCtx.moveTo(x, y);
+      }
+      hairCtx.closePath();
+      hairCtx.fill();
+      hairCtx.beginPath();
+      FACE_OVAL.forEach((j, i) => i ? hairCtx.lineTo(t.face[j].x, t.face[j].y) : hairCtx.moveTo(t.face[j].x, t.face[j].y));
       hairCtx.closePath();
       hairCtx.fill();
       hairCtx.globalCompositeOperation = 'source-over';
