@@ -7,28 +7,304 @@
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: #000; color: #eee; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+    html, body { margin: 0; height: 100%; background: #000; color: #eee; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; overflow: hidden; }
     body { display: flex; align-items: center; justify-content: center; }
-    video { width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
+    video { display: none; }
+    canvas { width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
     #status { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
     #status[hidden] { display: none; }
     button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid #555; background: #222; color: #eee; cursor: pointer; }
     button:hover { background: #333; }
+    #controls { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); font-size: 13px; }
+    #controls[hidden] { display: none; }
+    #controls span { opacity: .7; align-self: center; }
+    #controls label { display: flex; align-items: center; gap: 8px; }
+    #face { position: fixed; top: 16px; left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
   </style>
 </head>
 <body>
   <video id="video" autoplay playsinline muted></video>
+  <canvas id="canvas"></canvas>
+  <div id="face" hidden>Looking for your face…</div>
+  <div id="controls" hidden>
+    <label><input id="gazeOn" type="checkbox" checked> Eye contact</label>
+    <span>Pulse:</span>
+    <label><input id="pulseEyes" type="checkbox" checked> Eyes</label>
+    <label><input id="pulseNose" type="checkbox"> Nose</label>
+    <label><input id="pulseMouth" type="checkbox"> Mouth</label>
+    <label>Speed <input id="speed" type="range" min="0.2" max="4" step="0.1" value="1.2"></label>
+    <label>Size <input id="amount" type="range" min="0" max="1" step="0.01" value="0.6"></label>
+  </div>
   <div id="status">
     <p id="message">Requesting camera access…</p>
     <button id="retry" hidden>Try again</button>
   </div>
 
-  <script>
+  <script type="module">
+    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
+
     const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
     const message = document.getElementById('message');
     const retry = document.getElementById('retry');
+    const faceBadge = document.getElementById('face');
+    const controls = document.getElementById('controls');
+    const speed = document.getElementById('speed');
+    const amount = document.getElementById('amount');
+    const pulseEyes = document.getElementById('pulseEyes');
+    const pulseNose = document.getElementById('pulseNose');
+    const pulseMouth = document.getElementById('pulseMouth');
+    const gazeOn = document.getElementById('gazeOn');
 
+    // Landmark indices from MediaPipe's 478-point face mesh.
+    const EYES = [
+      { iris: 468, irisEdge: [469, 471], corners: [33, 133], lids: [159, 145] },
+      { iris: 473, irisEdge: [474, 476], corners: [362, 263], lids: [386, 374] }
+    ];
+    // Nose: tip and the outer edges of the nostrils. Mouth: corners and inner lips.
+    const NOSE = { centre: [1, 4], width: [129, 358], size: 1.0 };
+    const MOUTH = { centre: [13, 14], width: [61, 291], size: 0.8 };
+
+    // ---------- WebGL: draw the video with the eye regions warped ----------
+    const gl = canvas.getContext('webgl', { premultipliedAlpha: false });
+
+    const vertSrc = `
+      attribute vec2 a;
+      varying vec2 vUv;
+      void main() {
+        vUv = vec2(a.x * 0.5 + 0.5, 0.5 - a.y * 0.5); // top-left origin, same as landmarks
+        gl_Position = vec4(a, 0.0, 1.0);
+      }`;
+
+    // All positions are in video pixels. Per eye:
+    //   centre - middle of the eye opening
+    //   axis   - unit vector from one eye corner to the other
+    //   size   - semi-axes of the ellipse covering the eye opening
+    //   iris   - where the iris should appear (the corrected position)
+    //   irisR  - iris radius
+    //   shift  - from the corrected position back to where the iris really is
+    // Pulse regions (both eyes, nose, mouth) each have a centre and a radius; radius 0 is off.
+    const fragSrc = `
+      precision highp float;
+      varying vec2 vUv;
+      uniform sampler2D tex;
+      uniform vec2 res;
+      uniform vec2 centre[2], axis[2], size[2], shift[2], iris[2];
+      uniform float irisR[2];
+      uniform vec2 pulseCentre[4];
+      uniform float pulseRadius[4];
+      uniform float scale;     // pulse: >1 enlarges, <1 shrinks
+
+      // Magnify or pinch around c, easing back to no change at radius r so there is no seam.
+      vec2 pulse(vec2 p, vec2 c, float r) {
+        vec2 d = p - c;
+        float dist = length(d) / r;
+        if (r <= 0.0 || dist >= 1.0) return p;
+        return c + d * mix(1.0 / scale, 1.0, smoothstep(0.0, 1.0, dist));
+      }
+
+      // Lift the iris and pupil so they look into the camera. Only a small circle around the
+      // iris moves, and it is clipped to the eye opening so lids, corners and skin stay put.
+      // The iris slides up under the top lid; below it the mask fades gently to avoid folding.
+      vec2 gaze(vec2 p, vec2 c, vec2 u, vec2 ab, vec2 t, float ir, vec2 s) {
+        if (ab.x <= 0.0 || ab.y <= 0.0 || ir <= 0.0) return p;
+        vec2 d = p - c;
+        vec2 l = vec2(dot(d, u) / ab.x, dot(d, vec2(-u.y, u.x)) / ab.y);
+        float e = length(l);
+        float lid = l.y < 0.0 ? 1.0 - smoothstep(0.85, 1.0, e) : 1.0 - smoothstep(0.3, 1.0, e);
+        float disc = 1.0 - smoothstep(1.0, 2.2, length(p - t) / ir);
+        return p + s * disc * lid;
+      }
+
+      void main() {
+        vec2 p = vUv * res;
+        for (int i = 0; i < 4; i++) p = pulse(p, pulseCentre[i], pulseRadius[i]);
+        for (int i = 0; i < 2; i++) p = gaze(p, centre[i], axis[i], size[i], iris[i], irisR[i], shift[i]);
+        gl_FragColor = texture2D(tex, p / res);
+      }`;
+
+    function compile(type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    }
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, vertSrc));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fragSrc));
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const aLoc = gl.getAttribLocation(prog, 'a');
+    gl.enableVertexAttribArray(aLoc);
+    gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    const u = name => gl.getUniformLocation(prog, name);
+    const uRes = u('res'), uScale = u('scale'), uCentre = u('centre'), uAxis = u('axis'),
+          uSize = u('size'), uShift = u('shift'), uIris = u('iris'), uIrisR = u('irisR'), uPulseCentre = u('pulseCentre'), uPulseRadius = u('pulseRadius');
+
+    // ---------- Face tracking ----------
+    let landmarker = null;
+    // Smoothed per-eye measurements in video pixels. fade goes to 0 when the face is lost.
+    const eyes = EYES.map(() => ({ cx: 0, cy: 0, ux: 1, uy: 0, a: 0, b: 0, ix: 0, iy: 0, ir: 0, r: 0, open: 0, fade: 0 }));
+    const nose = { x: 0, y: 0, r: 0, fade: 0 };
+    const mouth = { x: 0, y: 0, r: 0, fade: 0 };
+    // How far the eyes are looking down relative to the head, 0..1 (from MediaPipe's blendshapes).
+    const gaze = { down: 0, fade: 0 };
+    let lastVideoTime = -1;
+
+    async function loadLandmarker() {
+      const fileset = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm');
+      const options = {
+        baseOptions: {
+          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          delegate: 'GPU'
+        },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: true
+      };
+      try {
+        return await FaceLandmarker.createFromOptions(fileset, options);
+      } catch {
+        options.baseOptions.delegate = 'CPU';
+        return await FaceLandmarker.createFromOptions(fileset, options);
+      }
+    }
+
+    const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+    function measureEye(face, eye, w, h) {
+      const pt = j => ({ x: face[j].x * w, y: face[j].y * h });
+      const [c0, c1] = eye.corners.map(pt);
+      const [top, bottom] = eye.lids.map(pt);
+      const iris = pt(eye.iris);
+      const [i0, i1] = eye.irisEdge.map(pt);
+
+      const width = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+      const ux = (c1.x - c0.x) / width, uy = (c1.y - c0.y) / width;
+      const vx = -uy, vy = ux;
+
+      // Centre of the eye opening: halfway between the corners along the eye's axis,
+      // halfway between the lids across it.
+      const mx = (c0.x + c1.x) / 2, my = (c0.y + c1.y) / 2;
+      const lx = (top.x + bottom.x) / 2, ly = (top.y + bottom.y) / 2;
+      const across = (lx - mx) * vx + (ly - my) * vy;
+      const cx = mx + vx * across, cy = my + vy * across;
+
+      const height = Math.abs((bottom.x - top.x) * vx + (bottom.y - top.y) * vy);
+
+      return {
+        cx, cy, ux, uy,
+        a: width / 2, b: height / 2,
+        ix: iris.x, iy: iris.y,
+        ir: Math.hypot(i1.x - i0.x, i1.y - i0.y) / 2,
+        r: width * 1.1,
+        open: height / width // roughly 0.3 when open, near 0 mid-blink
+      };
+    }
+
+    function measureFeature(face, feature, w, h) {
+      const [p0, p1] = feature.centre.map(j => face[j]);
+      const [e0, e1] = feature.width.map(j => face[j]);
+      return {
+        x: (p0.x + p1.x) / 2 * w,
+        y: (p0.y + p1.y) / 2 * h,
+        r: Math.hypot((e1.x - e0.x) * w, (e1.y - e0.y) * h) * feature.size
+      };
+    }
+
+    // Light smoothing to take the jitter out of the landmarks; fade out when the face is lost.
+    function smooth(target, m) {
+      if (!m) { target.fade *= 0.8; return; }
+      const t = target.fade < 0.01 ? 1 : 0.5;
+      for (const k in m) target[k] += (m[k] - target[k]) * t;
+      target.fade += (1 - target.fade) * 0.3;
+    }
+
+    function track(w, h) {
+      if (!landmarker || video.currentTime === lastVideoTime) return;
+      lastVideoTime = video.currentTime;
+
+      const result = landmarker.detectForVideo(video, performance.now());
+      const face = result.faceLandmarks[0];
+      faceBadge.hidden = !!face;
+
+      const shapes = result.faceBlendshapes?.[0]?.categories;
+      if (shapes) {
+        const score = name => shapes.find(c => c.categoryName === name)?.score ?? 0;
+        const down = (score('eyeLookDownLeft') + score('eyeLookDownRight')) / 2;
+        const up = (score('eyeLookUpLeft') + score('eyeLookUpRight')) / 2;
+        smooth(gaze, { down: Math.max(0, down - up) });
+      } else {
+        smooth(gaze, null);
+      }
+
+      EYES.forEach((eye, i) => smooth(eyes[i], face && measureEye(face, eye, w, h)));
+      smooth(nose, face && measureFeature(face, NOSE, w, h));
+      smooth(mouth, face && measureFeature(face, MOUTH, w, h));
+    }
+
+    function render(now) {
+      const w = video.videoWidth, h = video.videoHeight;
+      if (w && h) {
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          gl.viewport(0, 0, w, h);
+        }
+
+        track(w, h);
+
+        const wave = Math.sin(now / 1000 * Math.PI * 2 * Number(speed.value));
+        // Grows up to (1 + amount) and shrinks down to 1 / (1 + amount).
+        const scale = Math.pow(1 + Number(amount.value), wave);
+        // Lift each iris by roughly as far as the eyes have dropped, capped so the warp stays
+        // clean: at most ~half an iris, and never more than the lower mask can absorb.
+        // MediaPipe reports ~0.2 "down" even when looking straight at the lens, so ignore that much.
+        const down = Math.max(0, gaze.down - 0.15);
+        const lift = eyes.map(e => {
+          if (!gazeOn.checked) return 0;
+          const blink = clamp((e.open - 0.12) / 0.08, 0, 1);
+          return Math.min(down * 1.5 * e.ir, 0.6 * e.ir, 0.4 * e.b) * blink * e.fade * gaze.fade;
+        });
+
+        const f = (fn) => new Float32Array(eyes.flatMap(fn));
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+        gl.uniform2f(uRes, w, h);
+        gl.uniform1f(uScale, scale);
+        gl.uniform2fv(uCentre, f(e => [e.cx, e.cy]));
+        gl.uniform2fv(uAxis, f(e => [e.ux, e.uy]));
+        gl.uniform2fv(uSize, f(e => [e.a, e.b]));
+        // The eye's "down" direction is perpendicular to the corner-to-corner axis.
+        gl.uniform2fv(uShift, f((e, i) => [-e.uy * lift[i], e.ux * lift[i]]));
+        gl.uniform2fv(uIris, f((e, i) => [e.ix + e.uy * lift[i], e.iy - e.ux * lift[i]]));
+        gl.uniform1fv(uIrisR, f(e => [e.ir]));
+        const eyeR = e => pulseEyes.checked ? e.r * e.fade : 0;
+        gl.uniform2fv(uPulseCentre, new Float32Array([eyes[0].cx, eyes[0].cy, eyes[1].cx, eyes[1].cy, nose.x, nose.y, mouth.x, mouth.y]));
+        gl.uniform1fv(uPulseRadius, new Float32Array([
+          eyeR(eyes[0]),
+          eyeR(eyes[1]),
+          pulseNose.checked ? nose.r * nose.fade : 0,
+          pulseMouth.checked ? mouth.r * mouth.fade : 0
+        ]));
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      }
+      requestAnimationFrame(render);
+    }
+
+    // ---------- Camera ----------
     async function start() {
       status.hidden = false;
       retry.hidden = true;
@@ -41,11 +317,13 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
           audio: false
         });
         video.srcObject = stream;
+        await video.play();
         status.hidden = true;
+        controls.hidden = false;
       } catch (err) {
         const reasons = {
           NotAllowedError: 'Camera permission was denied. Allow it in your browser (and in System Settings → Privacy & Security → Camera), then try again.',
@@ -54,10 +332,23 @@
         };
         message.textContent = reasons[err.name] || `Could not start the camera: ${err.message}`;
         retry.hidden = false;
+        return;
+      }
+
+      if (!landmarker) {
+        faceBadge.textContent = 'Loading face tracking…';
+        faceBadge.hidden = false;
+        try {
+          landmarker = await loadLandmarker();
+          faceBadge.textContent = 'Looking for your face…';
+        } catch (err) {
+          faceBadge.textContent = `Face tracking failed to load: ${err.message}`;
+        }
       }
     }
 
     retry.addEventListener('click', start);
+    requestAnimationFrame(render);
     start();
   </script>
 </body>
