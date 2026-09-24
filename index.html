@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Barber Shop Simulator</title>
+  <title>Fraser's Barber Shop</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Crect x='22' y='12' width='20' height='40' rx='10'/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path='url(%23c)'%3E%3Crect width='64' height='64' fill='%23fff'/%3E%3Cg transform='rotate(-35 32 32)'%3E%3Crect x='-20' y='-40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='-20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='0' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='50' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='60' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='70' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='80' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='90' width='104' height='5' fill='%232c4f8f'/%3E%3C/g%3E%3C/g%3E%3Crect x='22' y='12' width='20' height='40' rx='10' fill='none' stroke='%237a5a24' stroke-width='2'/%3E%3Crect x='18' y='5' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3Crect x='18' y='50' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,27 +157,28 @@
     .extras-panel input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--clay); margin: 0; }
     .extras-panel input[type=range] { flex: 1; max-width: 180px; accent-color: var(--clay); }
 
-    /* ---- The secret menu item ---- */
-    .mullet { position: fixed; right: 14px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40;
-              font: 400 10px/1 var(--mono); letter-spacing: .16em; text-transform: lowercase; color: var(--muted);
-              opacity: .38; background: none; padding: 6px; transition: opacity .2s, color .2s; }
-    .mullet:hover, .mullet:focus-visible { opacity: 1; color: var(--neon); }
+    /* ---- The mullet, ordered off the menu ---- */
+    .priceless { background: none; padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--neon);
+                 text-shadow: 0 0 10px rgba(255, 138, 107, .45); border-bottom: 1px dotted rgba(255, 138, 107, .5); transition: color .15s, text-shadow .15s; }
+    .priceless:hover, .priceless:focus-visible { color: #ffd2c4; text-shadow: 0 0 14px var(--neon); }
+    .menu-mini { display: none; align-items: baseline; gap: 6px; width: min(320px, 100%); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .menu-mini i { flex: 1; border-bottom: 1px dotted rgba(239, 230, 214, .3); transform: translateY(-3px); }
+    @media (max-width: 999px) { .menu-mini { display: flex; } }
 
     @media (max-width: 700px) {
       body { gap: 12px; padding-left: 10px; padding-right: 10px; }
       .kicker { font-size: 9px; margin-bottom: 4px; }
-      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 215px) * 3 / 4)); padding: 7px; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 0 6px var(--bg), 0 0 0 7px rgba(201, 162, 90, .35), 0 24px 50px rgba(0,0,0,.6); }
+      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 240px) * 3 / 4)); padding: 7px; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 0 6px var(--bg), 0 0 0 7px rgba(201, 162, 90, .35), 0 24px 50px rgba(0,0,0,.6); }
       .big { padding: 14px 12px; font-size: 12px; gap: 8px; flex: 1; justify-content: center; letter-spacing: .1em; }
       .chair { width: 100%; }
       .small { padding: 10px 14px; }
-      .mullet { bottom: max(4px, env(safe-area-inset-bottom)); right: 8px; }
     }
   </style>
 </head>
 <body>
   <header>
     <div class="kicker">Est. 2026 · No appointment needed</div>
-    <h1><span class="serif">Barber Shop</span> <span class="neon">Simulator</span></h1>
+    <h1><span class="serif">Fraser’s</span> <span class="neon">Barber Shop</span></h1>
   </header>
 
   <div class="station">
@@ -202,7 +203,7 @@
         <li><span>Beard</span><i></i><b>Free</b></li>
         <li><span>Dye job</span><i></i><b>Free</b></li>
         <li><span>Hot towel</span><i></i><b>Sold out</b></li>
-        <li class="star"><span>The Mullet</span><i></i><b>Priceless</b></li>
+        <li class="star"><span>The Mullet</span><i></i><button class="priceless mullet-trigger" type="button" title="Go on then">Priceless</button></li>
       </ul>
       <p>Cash only · Tips welcome</p>
     </aside>
@@ -245,7 +246,7 @@
     </div>
   </div>
 
-  <button id="mulletMe" class="mullet" type="button" title="Off the menu">psst… mullet me</button>
+  <div class="menu-mini"><span>The Mullet</span><i></i><button class="priceless mullet-trigger" type="button" title="Go on then">Priceless</button></div>
 
   <script type="module">
     import { FaceLandmarker, ImageSegmenter, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
@@ -414,8 +415,9 @@
     let tracks = [];
     let nextTrackId = 1;
 
-    async function createTask(Task, options) {
+    async function createTask(Task, options, cpuOnly = false) {
       const fileset = await FilesetResolver.forVisionTasks(WASM);
+      if (cpuOnly) return await Task.createFromOptions(fileset, { ...options, baseOptions: { ...options.baseOptions, delegate: 'CPU' } });
       try {
         return await Task.createFromOptions(fileset, { ...options, baseOptions: { ...options.baseOptions, delegate: 'GPU' } });
       } catch {
@@ -647,17 +649,20 @@
       };
     }
 
-    async function loadSegmenter() {
+    async function loadSegmenter(cpuOnly = false) {
       hair.loading = true;
       growHair.disabled = true;
       growHair.querySelector('span').textContent = 'Loading…';
       try {
+        const old = hair.segmenter;
         hair.segmenter = await createTask(ImageSegmenter, {
           baseOptions: { modelAssetPath: SEGMENT_MODEL },
           runningMode: 'VIDEO',
           outputCategoryMask: true,
           outputConfidenceMasks: false
-        });
+        }, cpuOnly);
+        hair.cpuSegmenter = cpuOnly;
+        if (old) old.close();
       } catch (err) {
         faceBadge.textContent = `Hair model failed to load: ${err.message}`;
         faceBadge.hidden = false;
@@ -1080,10 +1085,19 @@
     // show over clothes.
     const occlusion = { data: null, tex: null, w: 0, h: 0, ready: false };
 
-    function updateOcclusion(result) {
+    function updateOcclusion(result, w, h) {
       const mask = result.categoryMask;
       if (!mask) return;
       const mw = mask.width, mh = mask.height;
+      // On some phones the GPU hands back an empty mask. If the tip of someone's nose keeps
+      // coming back as anything but face skin, switch segmentation to the CPU.
+      const cats0 = mask.getAsUint8Array(), t0 = tracks.find(t => t.face);
+      if (t0 && !hair.cpuSegmenter && !hair.loading) {
+        const n = t0.face[NOSE_TIP], nx = Math.round(n.x * mw / w), ny = Math.round(n.y * mh / h);
+        const ok = nx >= 0 && ny >= 0 && nx < mw && ny < mh && cats0[ny * mw + nx] === FACE_SKIN;
+        hair.badMasks = ok ? 0 : (hair.badMasks || 0) + 1;
+        if (hair.badMasks > 8) loadSegmenter(true);
+      }
       const step = Math.max(1, Math.ceil(mw / 384));
       const ow = Math.ceil(mw / step), oh = Math.ceil(mh / step);
       if (!occlusion.tex || occlusion.w !== ow || occlusion.h !== oh) {
@@ -1133,7 +1147,7 @@
     function segmentFrame(w, h, analyse) {
       const result = hair.segmenter.segmentForVideo(video, performance.now());
       try {
-        updateOcclusion(result);
+        updateOcclusion(result, w, h);
         if (analyse) analyseHair(result, w, h);
       } finally {
         result.close();
@@ -1163,13 +1177,6 @@
       res: { value: new THREE.Vector2(1, 1) },
       useMask: { value: 0 }
     };
-    const hairVertex = `
-      attribute vec3 fibre;
-      varying vec3 vColour; varying vec3 vFibre;
-      void main() {
-        vColour = color; vFibre = fibre;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`;
     const hairFragment = `
       uniform sampler2D mask; uniform vec2 res; uniform float useMask;
       varying vec3 vColour; varying vec3 vFibre;
@@ -1183,10 +1190,115 @@
         if (alpha < 0.02) discard;
         gl_FragColor = vec4(vColour, alpha);
       }`;
-    const hairMaterial = extra => new THREE.ShaderMaterial({
-      uniforms: hairUniforms, vertexShader: hairVertex, fragmentShader: hairFragment,
-      vertexColors: true, side: THREE.DoubleSide, alphaToCoverage: true, ...extra
-    });
+
+    // The drawn strands are built on the GPU. Each frame the CPU only simulates the guide
+    // strands and uploads their points as a small texture (one row per guide); every drawn
+    // strand is static geometry that knows its guide, where along it each point is, its own
+    // root on the head and its looks, and the vertex shader places, widens and shades it.
+    const strandVertex = `
+      uniform sampler2D guides;
+      uniform vec3 hO, hR, hU, hF, shape, light, halfV;
+      uniform float S, spreadF, halfWidth, browY, mullet;
+      uniform vec3 palette[6];
+      attribute vec4 aA; // guide, point along it, side of the ribbon, length relative to guide
+      attribute vec4 aB; // root direction on the head (x, y, z), tone
+      attribute vec4 aC; // spread, curl, curl frequency, curl phase
+      attribute vec4 aD; // shade, the lock's wave phase, underlayer?, width multiplier
+      varying vec3 vColour; varying vec3 vFibre;
+      const float N = float(NODES);
+      vec3 node(int g, int i) { return texelFetch(guides, ivec2(i, g), 0).xyz; }
+      void main() {
+        int g = int(aA.x + 0.5);
+        float j = aA.y, side = aA.z, ratio = aA.w, under = aD.z;
+        vec4 root = texelFetch(guides, ivec2(0, g), 0); // xyz root, w the guide's length
+        if (root.w < 0.01 * S) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); vColour = vec3(0.0); vFibre = vec3(0.0); return; }
+        // Walk along the guide; a shorter strand stops partway.
+        float u = j * ratio;
+        int i = int(min(N - 1.0, floor(u)));
+        vec3 A = node(g, i), B = node(g, i + 1);
+        vec3 P = mix(A, B, u - float(i));
+        float along = j / N;
+        // From the guide's root to this strand's own, over the head.
+        vec3 d = aB.xyz;
+        vec3 own = hO + (hR * d.x * shape.x + hU * d.y * shape.y + hF * d.z * shape.z) * 1.012;
+        P += (own - root.xyz) * (1.0 - 0.15 * along);
+        // Spread, curl and the lock's shared wave, sideways on screen, growing towards the tip.
+        vec2 seg = B.xy - A.xy;
+        vec2 perp = vec2(-seg.y, seg.x) / max(length(seg), 1e-4);
+        float wave = sin(along * 7.0 + aD.y) * 0.018 * min(1.0, root.w / (1.2 * S));
+        float spread = under > 0.5 ? aC.x : aC.x * spreadF;
+        P.xy += perp * (spread + sin(along * aC.z + aC.w) * aC.y + wave * (1.0 - under)) * S * along;
+        // Widen into a ribbon facing the camera; natural ends taper, a mullet's cut ends don't.
+        vec3 T = normalize(B - A + vec3(0.0, 1e-5, 0.0));
+        float blunt = mullet * clamp((d.z + 0.4) / 0.25, 0.0, 1.0);
+        float w = halfWidth * aD.w * (1.0 - 0.85 * along * along * (1.0 - blunt));
+        vec2 ts = T.xy / max(length(T.xy), 1e-4);
+        P.xy += vec2(-ts.y, ts.x) * w * side;
+        // Shaded like hair (Kajiya–Kay): brightest across the light, a sharp white highlight
+        // and a broader one tinted by the hair's colour, darker at the roots and round the
+        // back of the head, a little lighter towards the tips.
+        float tL = dot(T, light), tH = dot(T, halfV), tH2 = tH + 0.3;
+        float diffuse = sqrt(max(0.0, 1.0 - tL * tL));
+        float h1 = pow(max(0.0, 1.0 - tH * tH), 32.0), h2 = pow(max(0.0, 1.0 - tH2 * tH2), 8.0);
+        vec3 rel = P - hO;
+        float lz = dot(rel, hF), ly = dot(rel, hU);
+        float depth = 0.7 + 0.3 * clamp((lz / shape.z + 1.0) / 2.0, 0.0, 1.0);
+        float shade = (0.32 + 0.78 * diffuse) * (0.55 + 0.45 * min(1.0, j / 3.0)) * depth * aB.w * (1.0 + 0.16 * along * along);
+        vec3 base = palette[int(aD.x + 0.5)];
+        vColour = base * shade + vec3(0.2, 0.19, 0.17) * h1 + base * h2 * 0.28;
+        // Occlusion layer: only a mullet's fringe lies over the forehead, and its long back is
+        // always behind the neck, face and shoulders.
+        bool behind = mullet > 0.5 && d.z < -0.15;
+        float layer = (lz < 0.0 || behind) ? 0.0 : ((mullet > 0.5 && ly > browY) ? 2.0 : 1.0);
+        vFibre = vec3(side, along * (1.0 - 0.3 * blunt), layer);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(P, 1.0);
+      }`;
+
+    // Static strand geometry for one person's roots: the drawn strands, or (under = true) the
+    // underlayer of three wide, darker ribbons along each guide.
+    function strandGeometry3(roots, under) {
+      const items = [];
+      if (under) {
+        roots.guides.forEach((g, gi) => {
+          for (let r = 0; r < 3; r++) items.push({ gi, dir: g.dir, ratio: 1, tone: [0.9, 0.8, 0.75][r], spread: (r - 1) * 0.022, curl: 0, curlFreq: 0, phase: 0, shade: r < 2 ? 1 : 2, wave: g.phase, width: 4 });
+        });
+      } else {
+        for (const s of roots.strands) {
+          const g = roots.guides[s.gi];
+          items.push({ gi: s.gi, dir: s.dir, ratio: Math.min(1, s.lengthF / g.lengthF), tone: s.tone, spread: s.spread, curl: s.curl * (s.flyaway ? 4 : 1), curlFreq: s.curlFreq, phase: s.phase, shade: s.shade, wave: g.phase, width: 1 });
+        }
+      }
+      const verts = items.length * POINTS * 2;
+      const A = new Float32Array(verts * 4), B = new Float32Array(verts * 4), C = new Float32Array(verts * 4), D = new Float32Array(verts * 4);
+      let v = 0;
+      for (const it of items) {
+        for (let j = 0; j < POINTS; j++) {
+          for (const side of [1, -1]) {
+            A.set([it.gi, j, side, it.ratio], v * 4);
+            B.set([it.dir.x, it.dir.y, it.dir.z, it.tone], v * 4);
+            C.set([it.spread, it.curl, it.curlFreq, it.phase], v * 4);
+            D.set([it.shade, it.wave, under ? 1 : 0, it.width], v * 4);
+            v++;
+          }
+        }
+      }
+      const idx = new Uint32Array(items.length * (POINTS - 1) * 6);
+      let k = 0;
+      for (let n = 0; n < items.length; n++) {
+        for (let j = 0; j < POINTS - 1; j++) {
+          const q = (n * POINTS + j) * 2;
+          idx.set([q, q + 1, q + 2, q + 1, q + 3, q + 2], k); k += 6;
+        }
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts * 3), 3)); // unused: placed by the shader
+      geo.setAttribute('aA', new THREE.BufferAttribute(A, 4));
+      geo.setAttribute('aB', new THREE.BufferAttribute(B, 4));
+      geo.setAttribute('aC', new THREE.BufferAttribute(C, 4));
+      geo.setAttribute('aD', new THREE.BufferAttribute(D, 4));
+      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      return geo;
+    }
 
     // A mesh of camera-facing ribbons, one per strand, rebuilt from points every frame.
     function ribbonMesh(strands, points, material) {
@@ -1258,23 +1370,41 @@
       const skull = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), occluderMaterial);
       skull.renderOrder = -1; skull.frustumCulled = false;
       skull.matrixAutoUpdate = false;
+      // The guide strands' points, uploaded every frame for the GPU to build the hair from.
+      const guideData = new Float32Array(POINTS * GUIDES * 4);
+      const guideTex = new THREE.DataTexture(guideData, POINTS, GUIDES, THREE.RGBAFormat, THREE.FloatType);
+      guideTex.magFilter = guideTex.minFilter = THREE.NearestFilter;
+      const uniforms = {
+        ...hairUniforms,
+        guides: { value: guideTex },
+        hO: { value: new THREE.Vector3() }, hR: { value: new THREE.Vector3() }, hU: { value: new THREE.Vector3() }, hF: { value: new THREE.Vector3() },
+        shape: { value: new THREE.Vector3(1, 1, 1) },
+        light: { value: new THREE.Vector3(LIGHT.x, LIGHT.y, LIGHT.z) }, halfV: { value: new THREE.Vector3(HALF.x, HALF.y, HALF.z) },
+        S: { value: 1 }, spreadF: { value: 0.03 }, halfWidth: { value: 1 }, browY: { value: 0 }, mullet: { value: 0 },
+        palette: { value: Array.from({ length: 6 }, () => new THREE.Vector3()) }
+      };
+      const strandMaterial = extra => new THREE.ShaderMaterial({
+        uniforms, vertexShader: strandVertex, fragmentShader: hairFragment, defines: { NODES },
+        side: THREE.DoubleSide, alphaToCoverage: true, ...extra
+      });
       // Drawn just behind the strands at the same depth, so the strands always sit on top.
-      const under = ribbonMesh(GUIDES * 3, POINTS, hairMaterial({ polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));
-      const hairMesh = ribbonMesh(STRANDS, POINTS, hairMaterial());
+      const under = new THREE.Mesh(new THREE.BufferGeometry(), strandMaterial({ polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));
+      const hairMesh = new THREE.Mesh(new THREE.BufferGeometry(), strandMaterial());
+      under.frustumCulled = hairMesh.frustumCulled = false;
       const beardMesh = ribbonMesh(BEARD_STRANDS.length, BEARD_POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
       // The beard sits on top of the face and neck, so it's drawn last and isn't hidden by them.
       beardMesh.material.depthTest = false;
       beardMesh.renderOrder = 10;
       group.add(skull, under, hairMesh, beardMesh);
       scene.add(group);
-      t.gfx = { group, skull, under, hairMesh, beardMesh, roots: null, last: null,
-                pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS), layers: new Float32Array(POINTS) };
+      t.gfx = { group, skull, under, hairMesh, beardMesh, roots: null, last: null, guideData, guideTex, uniforms };
     }
 
     function disposeGfx(t) {
       if (!t.gfx) return;
       scene.remove(t.gfx.group);
       t.gfx.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== occluderMaterial) o.material.dispose(); });
+      t.gfx.guideTex.dispose();
       t.gfx = null;
     }
 
@@ -1293,90 +1423,39 @@
       if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = false; }
       else {
         const shape = fitShape(t, hf);
-        if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) G.roots = makeRoots(shape.front);
+        if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) {
+          G.roots = makeRoots(shape.front);
+          G.hairMesh.geometry.dispose(); G.hairMesh.geometry = strandGeometry3(G.roots, false);
+          G.under.geometry.dispose(); G.under.geometry = strandGeometry3(G.roots, true);
+        }
         G.skull.visible = G.under.visible = G.hairMesh.visible = true;
         // A little inside the hair's surface, so it only hides hair that's really behind the head.
         ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.9, shape.b * 0.9, shape.c * 0.9);
-        const pal = hairPalette(t);
 
-        const bz = hf.O.z;
-        simulate(t, hf, shape, dt, time, bz);
-        const pts = G.pts, depthShade = G.shade, layers = G.layers;
-        let behind = false;
-        const browY = toLocal(hf, t.face[FOREHEAD]).y - 0.12 * S;
-        // Shade by how far round the back of the head a point is, and pick its occlusion layer.
-        const shadeAt = j => {
-          const dx = pts[j * 3] - hf.O.x, dy = pts[j * 3 + 1] - hf.O.y, dz = pts[j * 3 + 2] - hf.O.z;
-          const lz = dx * hf.F.x + dy * hf.F.y + dz * hf.F.z;
-          const ly = dx * hf.U.x + dy * hf.U.y + dz * hf.U.z;
-          // Only a mullet's fringe lies over the forehead; otherwise skin hides hair in front.
-          // A mullet's long back is always behind the neck, face and shoulders.
-          layers[j] = lz < 0 || behind ? 0 : (hair.mullet > 0.5 && ly > browY ? 2 : 1);
-          return 0.7 + 0.3 * Math.max(0, Math.min(1, (lz / shape.c + 1) / 2));
-        };
+        simulate(t, hf, shape, dt, time, hf.O.z);
 
-        // The underlayer: three wide, dark ribbons along each guide, fanned slightly apart.
-        const up = G.under.geometry.attributes.position.array, uc = G.under.geometry.attributes.color.array, uf = G.under.geometry.attributes.fibre.array;
-        const dark = [pal[1].map(v => v * 0.9), pal[1].map(v => v * 0.8), pal[2].map(v => v * 0.75)];
-        let under = 0;
-        for (const g of G.roots.guides) {
-          if (!g.init || g.len < S * 0.01) continue;
-          behind = hair.mullet > 0.5 && g.dir.z < -0.15;
-          for (let r = 0; r < 3; r++) {
-            const spread = (r - 1) * 0.022 * S;
-            for (let j = 0; j < POINTS; j++) {
-              const k = j * 3, along = j / NODES;
-              const dx = g.p[Math.min(k + 3, NODES * 3)] - g.p[Math.max(0, k - 3)], dy = g.p[Math.min(k + 4, NODES * 3 + 1)] - g.p[Math.max(1, k - 2)];
-              const dl = Math.hypot(dx, dy) || 1;
-              pts[k] = g.p[k] - dy / dl * spread * along;
-              pts[k + 1] = g.p[k + 1] + dx / dl * spread * along;
-              pts[k + 2] = g.p[k + 2];
-              depthShade[j] = shadeAt(j);
-            }
-            writeRibbon(up, uc, under++, pts, POINTS, Math.max(2, S * 0.018), dark[r], depthShade, uf, layers);
-          }
-        }
-        G.under.geometry.setDrawRange(0, under * (POINTS - 1) * 6);
-        G.under.geometry.attributes.position.needsUpdate = true;
-        G.under.geometry.attributes.color.needsUpdate = true;
-        G.under.geometry.attributes.fibre.needsUpdate = true;
-
-        // Drawn strands follow their guide, offset to their own root and fanning out a little.
-        const pos = G.hairMesh.geometry.attributes.position.array, col = G.hairMesh.geometry.attributes.color.array, fib = G.hairMesh.geometry.attributes.fibre.array;
-        const halfWidth = Math.max(1.1, S * 0.0045), spreadF = 0.03 + 0.045 * Math.min(1, hair.length / 1.5);
-        let drawn = 0;
-        const roots = G.roots;
-        for (let n = 0; n < count; n++) {
-          const s = roots.strands[n], g = roots.guides[s.gi];
-          if (!g.init || g.len < S * 0.01) continue;
-          // Offset from the guide's root to this strand's, over the head's surface.
-          const la = (s.dir.x - g.dir.x) * shape.a * 1.012, lb = (s.dir.y - g.dir.y) * shape.b * 1.012, lc = (s.dir.z - g.dir.z) * shape.c * 1.012;
-          const ox = hf.R.x * la + hf.U.x * lb + hf.F.x * lc;
-          const oy = hf.R.y * la + hf.U.y * lb + hf.F.y * lc;
-          const oz = hf.R.z * la + hf.U.z * lb + hf.F.z * lc;
-          const ratio = Math.min(1, s.lengthF / g.lengthF);
-          behind = hair.mullet > 0.5 && s.dir.z < -0.15;
+        // Upload the guides: each row a guide's points, with its length in the first point's w.
+        const data = G.guideData;
+        G.roots.guides.forEach((g, gi) => {
           for (let j = 0; j < POINTS; j++) {
-            const u = j * ratio, i = Math.min(NODES - 1, Math.floor(u)), f = u - i, k = i * 3;
-            const along = j / NODES, keep = 1 - 0.15 * along;
-            const ax = g.p[k] + (g.p[k + 3] - g.p[k]) * f, ay = g.p[k + 1] + (g.p[k + 4] - g.p[k + 1]) * f, az = g.p[k + 2] + (g.p[k + 5] - g.p[k + 2]) * f;
-            const dx = g.p[k + 3] - g.p[k], dy = g.p[k + 4] - g.p[k + 1], dl = Math.hypot(dx, dy) || 1;
-            // Spread and curl sideways (on screen), growing towards the tip.
-            // Plus a gentle wave shared by the whole lock, stronger the longer the hair.
-            const wave = Math.sin(along * 7 + g.phase) * 0.018 * Math.min(1, g.len / (1.2 * S));
-            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl * (s.flyaway ? 4 : 1) + wave) * S * along;
-            pts[j * 3] = ax + ox * keep - dy / dl * side;
-            pts[j * 3 + 1] = ay + oy * keep + dx / dl * side;
-            pts[j * 3 + 2] = az + oz * keep;
-            // Darker the further round the back of the head the strand is.
-            depthShade[j] = shadeAt(j);
+            const o = (gi * POINTS + j) * 4;
+            data[o] = g.p[j * 3]; data[o + 1] = g.p[j * 3 + 1]; data[o + 2] = g.p[j * 3 + 2];
+            data[o + 3] = j === 0 && g.init ? g.len : 0;
           }
-          writeRibbon(pos, col, drawn++, pts, POINTS, halfWidth, pal[s.shade], depthShade, fib, layers, s.tone, hair.mullet * clamp01((s.dir.z + 0.4) / 0.25));
-        }
-        G.hairMesh.geometry.setDrawRange(0, drawn * (POINTS - 1) * 6);
-        G.hairMesh.geometry.attributes.position.needsUpdate = true;
-        G.hairMesh.geometry.attributes.color.needsUpdate = true;
-        G.hairMesh.geometry.attributes.fibre.needsUpdate = true;
+        });
+        G.guideTex.needsUpdate = true;
+
+        const u = G.uniforms, pal = hairPalette(t);
+        u.hO.value.set(hf.O.x, hf.O.y, hf.O.z); u.hR.value.set(hf.R.x, hf.R.y, hf.R.z);
+        u.hU.value.set(hf.U.x, hf.U.y, hf.U.z); u.hF.value.set(hf.F.x, hf.F.y, hf.F.z);
+        u.shape.value.set(shape.a, shape.b, shape.c);
+        u.S.value = S;
+        u.spreadF.value = 0.03 + 0.045 * Math.min(1, hair.length / 1.5);
+        u.halfWidth.value = Math.max(1.1, S * 0.0045);
+        u.browY.value = toLocal(hf, t.face[FOREHEAD]).y - 0.12 * S;
+        u.mullet.value = hair.mullet;
+        pal.forEach((c, i) => u.palette.value[i].set(c[0], c[1], c[2]));
+        G.hairMesh.geometry.setDrawRange(0, count * (POINTS - 1) * 6);
       }
 
       drawBeard(t, hf, dt);
@@ -1385,9 +1464,9 @@
     // ---------- Mullet Me ----------
     // Grows the hair out long, then cuts it into a classic mullet: a full top combed forward
     // into a blunt fringe just above the brows, short sides around the ears, and the back left
-    // long and flowing: business in the front, party in the back. A US flag flies across the
-    // mirror and a fast bluegrass banjo tune plays (synthesised here, so no audio files are
-    // needed).
+    // long behind the neck: business in the front, party in the back. Any beard is shaved off.
+    // A US flag flies behind the person and a fast bluegrass banjo tune plays (synthesised
+    // here, so no audio files are needed).
     const MULLET_TOP = 0.24;         // face heights: top and fringe, reaching just above the brows
     const MULLET_SIDES = 0.1;        // face heights: short around the ears
     const mullet = { cutAt: Infinity, flagFrom: -Infinity, audio: null };
@@ -1406,7 +1485,7 @@
       return full + (Math.min(full, short) - full) * hair.mullet * cut;
     }
 
-    $('mulletMe').addEventListener('click', async () => {
+    const mulletMe = async () => {
       if (!hair.segmenter && !hair.loading) await loadSegmenter();
       if (!hair.segmenter) return;
       hair.mullet = 0;
@@ -1414,12 +1493,21 @@
       resetHair.hidden = false;
       const now = performance.now();
       mullet.cutAt = now + 1600;     // let it grow out first, then the barber gets to work
+      mullet.shaved = false;
       mullet.flagFrom = now + 1200;
       playBanjo();
-    });
+    };
+    for (const b of document.querySelectorAll('.mullet-trigger')) b.addEventListener('click', mulletMe);
 
     function updateMullet(now) {
-      if (now >= mullet.cutAt) hair.mullet = Math.min(1, (now - mullet.cutAt) / 900);
+      if (now < mullet.cutAt) return;
+      hair.mullet = Math.min(1, (now - mullet.cutAt) / 900);
+      // The barber shaves off any beard at the same time: a proper mullet is clean-shaven.
+      if (!mullet.shaved) {
+        mullet.shaved = true;
+        beard.target = 0;
+        shaveBeard.hidden = true;
+      }
     }
 
     // The flag: drawn once, then drawn in thin slices each frame, each slice shifted and shaded
@@ -1678,7 +1766,7 @@
 
     const BEARD_STRANDS = (() => {
       const rnd = random(99);
-      return Array.from({ length: MOBILE ? 900 : 2400 }, (_, n) => ({
+      return Array.from({ length: MOBILE ? 1200 : 3200 }, (_, n) => ({
         moustache: n % 6 === 0,
         t: rnd(),                                  // across the jaw or lip, 0..1
         d: Math.pow(rnd(), 0.8) * 1.08 - 0.08,     // from just below the jaw (0) up to the mouth (1)
@@ -1749,7 +1837,7 @@
       }
       colours.sort((p, q) => p[0] - q[0]);
       // The darkest samples are the hair; the rest is skin showing through.
-      t.beardPalette = paletteFrom(colours.slice(0, Math.ceil(colours.length * 0.35)));
+      t.beardPalette = paletteFrom(colours.slice(0, Math.ceil(colours.length * 0.2)));
     }
 
     // Where a beard strand grows from, which way it grows and how long it is.
@@ -1770,13 +1858,16 @@
       const reach = 0.1 + 0.62 * Math.pow(Math.sin(Math.PI * b.t), 1.5);
       const j = along(f, JAW, b.t), root = add3(j, scale3(sub(mouth, j), reach * b.d));
       if (insidePolygon(lips, root.x, root.y)) return null;
-      // Down the face, a little outwards and forwards.
-      const out = norm(sub(root, hf.O));
-      return {
-        root: add3(root, lift),
-        dir: norm(add3(scale3(down, 0.85), scale3(out, 0.3), scale3(hf.F, 0.25))),
-        len: beard.length * S * b.lengthF * (1 - 0.45 * Math.max(0, b.d))
-      };
+      // Down the face and a little forwards, drawing in towards the chin, the way a long
+      // beard tapers rather than fanning out past the jaw.
+      const chin = f[CHIN], inward = sub(chin, root);
+      const inX = dot(inward, hf.R) / S;
+      const dir = norm(add3(scale3(down, 0.9), scale3(hf.F, 0.28), scale3(hf.R, inX * 0.6)));
+      // Sideburns and cheeks stay short; the length comes from the chin and jaw.
+      const fromSide = Math.pow(Math.sin(Math.PI * b.t), 0.8);
+      const shortCheeks = 1 - 0.6 * Math.max(0, b.d) * (1 - fromSide);
+      const len = beard.length * S * b.lengthF * (0.18 + 0.82 * fromSide) * shortCheeks * (1 - 0.35 * Math.max(0, b.d));
+      return { root: add3(root, lift), dir, len };
     }
 
     // Step the beard's guides: pinned at the root, pulled towards their natural shape (strongly
@@ -1787,6 +1878,8 @@
       const hold = Math.max(0.06, Math.min(0.85, 1 - beard.length / 0.45));
       if (!t.gfx.beardGuides) t.gfx.beardGuides = BEARD_GUIDE_STRANDS.map(() => ({ p: new Float32Array(BEARD_POINTS * 3), q: new Float32Array(BEARD_POINTS * 3), init: false, len: 0 }));
       const rest = new Float32Array(BEARD_POINTS * 3);
+      const chinPt = t.face[CHIN];
+      const jawHalf = Math.abs(dot(sub(t.face[JAW[0]], t.face[JAW[JAW.length - 1]]), hf.R)) / 2 * 0.92;
       BEARD_GUIDE_STRANDS.forEach((b, gi) => {
         const G = t.gfx.beardGuides[gi], r = roots.get(b);
         if (!r) { G.init = false; return; }
@@ -1821,6 +1914,13 @@
             else {
               p[k] -= ex * diff * 0.5; p[k + 1] -= ey * diff * 0.5; p[k + 2] -= ez * diff * 0.5;
               p[j] += ex * diff * 0.5; p[j + 1] += ey * diff * 0.5; p[j + 2] += ez * diff * 0.5;
+            }
+            // No wider than the jaw, narrowing towards the tip.
+            const cx = (p[k] - chinPt.x) * hf.R.x + (p[k + 1] - chinPt.y) * hf.R.y + (p[k + 2] - chinPt.z) * hf.R.z;
+            const limit = jawHalf * (1 - 0.3 * i / BEARD_NODES);
+            if (Math.abs(cx) > limit) {
+              const over = Math.abs(cx) - limit, sgn = Math.sign(cx);
+              p[k] -= hf.R.x * over * sgn; p[k + 1] -= hf.R.y * over * sgn; p[k + 2] -= hf.R.z * over * sgn;
             }
             // Not back into the chin and neck.
             const lz = (p[k] - hf.O.x) * hf.F.x + (p[k + 1] - hf.O.y) * hf.F.y + (p[k + 2] - hf.O.z) * hf.F.z;
@@ -1874,7 +1974,7 @@
             pts[k * 3 + 2] = r.root.z + r.dir.z * r.len * u;
           }
         }
-        writeRibbon(pos, col, drawn++, pts, BEARD_POINTS, Math.max(0.5, S * 0.0018), pal[b.shade], shade);
+        writeRibbon(pos, col, drawn++, pts, BEARD_POINTS, Math.max(0.7, S * 0.0026), pal[b.shade], shade);
       }
       mesh.geometry.setDrawRange(0, drawn * BEARD_NODES * 6);
       mesh.geometry.attributes.position.needsUpdate = true;
