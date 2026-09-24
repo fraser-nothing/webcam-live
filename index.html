@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Barber Shop Simulator</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Crect x='22' y='12' width='20' height='40' rx='10'/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path='url(%23c)'%3E%3Crect width='64' height='64' fill='%23fff'/%3E%3Cg transform='rotate(-35 32 32)'%3E%3Crect x='-20' y='-40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='-20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='0' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='50' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='60' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='70' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='80' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='90' width='104' height='5' fill='%232c4f8f'/%3E%3C/g%3E%3C/g%3E%3Crect x='22' y='12' width='20' height='40' rx='10' fill='none' stroke='%237a5a24' stroke-width='2'/%3E%3Crect x='18' y='5' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3Crect x='18' y='50' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -100,8 +101,18 @@
     .small:hover { background: rgba(243, 234, 216, .14); }
     #retry { padding: 10px 20px; border-radius: 999px; background: var(--brass); color: #1b140a; font-weight: 700; }
 
-    /* ---- Extras ---- */
+    /* ---- Pop-up panels (Dye, Extras) ---- */
     .extras { position: relative; }
+    .extras.left .extras-panel { right: auto; left: 0; }
+    .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px;
+           border: 1px solid rgba(243, 234, 216, .5); background: conic-gradient(#2a1d15, #7a4a2a, #c9a25a, #2a1d15); }
+    .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .swatch { display: grid; justify-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: none; padding: 0; }
+    .swatch i { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(243, 234, 216, .25); box-shadow: inset 0 -6px 10px rgba(0,0,0,.35); }
+    .swatch[aria-checked="true"] { color: var(--cream); }
+    .swatch[aria-checked="true"] i { border-color: var(--brass-hi); box-shadow: 0 0 0 3px rgba(241, 213, 150, .35), inset 0 -6px 10px rgba(0,0,0,.35); }
+    .custom { display: flex; align-items: center; justify-content: space-between; }
+    .custom input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid rgba(243, 234, 216, .3); border-radius: 8px; background: none; cursor: pointer; }
     .extras-panel {
       position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 30; width: min(340px, calc(100vw - 32px));
       display: grid; gap: 12px; padding: 16px; border-radius: 16px; background: rgba(16, 20, 18, .96);
@@ -159,6 +170,14 @@
     </button>
     <button id="resetHair" class="small" type="button" hidden>Cut hair</button>
     <button id="shaveBeard" class="small" type="button" hidden>Shave</button>
+    <div class="extras left">
+      <button id="dyeToggle" class="small" type="button" aria-expanded="false" aria-controls="dye"><span id="dyeDot" class="dot"></span>Dye</button>
+      <div id="dye" class="extras-panel" hidden>
+        <h2>Hair dye</h2>
+        <div id="swatches" class="swatches" role="radiogroup" aria-label="Hair colour"></div>
+        <label class="custom">Custom colour <input id="dyeCustom" type="color" value="#8a3fd1"></label>
+      </div>
+    </div>
     <div class="extras">
       <button id="extrasToggle" class="small" type="button" aria-expanded="false" aria-controls="extras">Extras</button>
       <div id="extras" class="extras-panel" hidden>
@@ -199,13 +218,23 @@
     const MOBILE = matchMedia('(max-width: 700px), (pointer: coarse)').matches;
     const MAX_FACES = MOBILE ? 3 : 4; // the shader's arrays are sized for 4
 
-    const extras = $('extras'), extrasToggle = $('extrasToggle');
-    extrasToggle.addEventListener('click', () => {
-      extras.hidden = !extras.hidden;
-      extrasToggle.setAttribute('aria-expanded', String(!extras.hidden));
-    });
+    // The Dye and Extras pop-up panels: one open at a time, closed by clicking elsewhere.
+    const panels = [[$('dyeToggle'), $('dye')], [$('extrasToggle'), $('extras')]];
+    const showPanel = (panel, open) => {
+      panel.hidden = !open;
+      panels.find(([, p]) => p === panel)[0].setAttribute('aria-expanded', String(open));
+    };
+    for (const [toggle, panel] of panels) {
+      toggle.addEventListener('click', () => {
+        const open = panel.hidden;
+        for (const [, p] of panels) showPanel(p, false);
+        showPanel(panel, open);
+      });
+    }
     document.addEventListener('click', e => {
-      if (!extras.hidden && !e.target.closest('.extras')) { extras.hidden = true; extrasToggle.setAttribute('aria-expanded', 'false'); }
+      for (const [toggle, panel] of panels) {
+        if (!panel.hidden && !panel.contains(e.target) && !toggle.contains(e.target)) showPanel(panel, false);
+      }
     });
 
     // Browsers restore form state on reload; always start from the defaults in the HTML.
@@ -402,11 +431,12 @@
       const now = performance.now(), dt = Math.max(0.005, Math.min(0.1, (now - lastDetectAt) / 1000));
       lastDetectAt = now;
 
-      const found = landmarker.detectForVideo(video, now).faceLandmarks.map(raw => {
+      const result = landmarker.detectForVideo(video, now);
+      const found = result.faceLandmarks.map((raw, n) => {
         const flat = new Float32Array(raw.length * 3);
         raw.forEach((p, i) => { flat[i * 3] = p.x * w; flat[i * 3 + 1] = p.y * h; flat[i * 3 + 2] = -p.z * w; });
         const face = toPoints(flat);
-        return { flat, face, m: measure(face) };
+        return { flat, face, m: measure(face), rot: poseAxes(result.facialTransformationMatrixes?.[n]) };
       });
       faceBadge.hidden = found.length > 0;
 
@@ -423,6 +453,7 @@
         usedTracks.add(t); usedFaces.add(f);
         t.face = toPoints(t.filter.filter(f.flat, dt));
         t.m = measure(t.face);
+        t.rot = f.rot && t.rotFilter.filter(f.rot, dt);
         t.fade += (1 - t.fade) * 0.3;
       }
       // People who have gone fade out; new faces start new tracks.
@@ -431,9 +462,9 @@
       tracks = tracks.filter(t => t.fade > 0.02);
       for (const f of found) {
         if (usedFaces.has(f) || tracks.length >= MAX_FACES) continue;
-        const filter = new OneEuro(1.2, 0.05);
+        const filter = new OneEuro(1.2, 0.05), rotFilter = new OneEuro(1.5, 0.3);
         const face = toPoints(filter.filter(f.flat, dt));
-        tracks.push({ id: nextTrackId++, filter, face, m: measure(face), fade: 0.3, hair: newHairState() });
+        tracks.push({ id: nextTrackId++, filter, rotFilter, face, m: measure(face), rot: f.rot && rotFilter.filter(f.rot, dt), fade: 0.3, hair: newHairState() });
       }
       return true;
     }
@@ -450,15 +481,46 @@
     const norm = a => scale3(a, 1 / (Math.hypot(a.x, a.y, a.z) || 1));
     const cross = (a, b) => v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
     const EAR_L = 234, EAR_R = 454, NOSE_TIP = 1;
+    // The jawline from one corner of the jaw, round the chin, to the other.
+    const NECK_JAW = [172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397];
 
-    function headFrame(face) {
+    // MediaPipe's own 3D head pose (its face model fitted to the landmarks) gives a steadier
+    // rotation than a few landmarks do. Its axes, as a flat [R, U, F] array in screen space
+    // (y down), or null if it isn't available.
+    function poseAxes(mat) {
+      if (!mat || !mat.data || mat.data.length < 16) return null;
+      const d = mat.data;
+      // The translation (tens of centimetres away from the camera) tells us the layout.
+      const colMajor = Math.abs(d[14]) > Math.abs(d[11]);
+      const e = (r, c) => colMajor ? d[c * 4 + r] : d[r * 4 + c];
+      const axes = new Float32Array(9);
+      for (let c = 0; c < 3; c++) {
+        const x = e(0, c), y = -e(1, c), z = e(2, c), l = Math.hypot(x, y, z) || 1;
+        axes[c * 3] = x / l; axes[c * 3 + 1] = y / l; axes[c * 3 + 2] = z / l;
+      }
+      return axes;
+    }
+
+    function headFrame(face, rot) {
       const l = face[EAR_L], r = face[EAR_R], top = face[FOREHEAD], chin = face[CHIN];
-      const R = norm(sub(r, l));
+      let R = norm(sub(r, l));
       const up = sub(top, chin);
-      const U = norm(sub(up, scale3(R, dot(up, R))));
+      let U = norm(sub(up, scale3(R, dot(up, R))));
       let F = norm(cross(R, U));
       const ears = scale3(add3(l, r), 0.5);
       if (dot(sub(face[NOSE_TIP], ears), F) < 0) F = scale3(F, -1);
+      if (rot) {
+        // Use the fitted pose's rotation, lined up with the landmark directions (so its axis
+        // conventions can't flip anything), then made exactly perpendicular again.
+        const axis = (i, ref) => { const a = v3(rot[i * 3], rot[i * 3 + 1], rot[i * 3 + 2]); return dot(a, ref) < 0 ? scale3(a, -1) : a; };
+        const pr = axis(0, R), pu = axis(1, U), pf = axis(2, F);
+        if (dot(pr, R) > 0.7 && dot(pu, U) > 0.7) {
+          R = norm(pr);
+          U = norm(sub(pu, scale3(R, dot(pu, R))));
+          F = norm(cross(R, U));
+          if (dot(F, pf) < 0) F = scale3(F, -1);
+        }
+      }
       const S = Math.hypot(up.x, up.y, up.z);
       const O = add3(ears, scale3(U, 0.1 * S), scale3(F, -0.05 * S));
       return { O, R, U, F, S, width: Math.hypot(r.x - l.x, r.y - l.y, r.z - l.z) };
@@ -1001,7 +1063,15 @@
       for (let c = 0; c < SHOULDER_BINS - 1; c++) bodyIdx.push(c * 2, c * 2 + 1, c * 2 + 2, c * 2 + 1, c * 2 + 3, c * 2 + 2);
       bodyGeo.setIndex(bodyIdx);
       const body = new THREE.Mesh(bodyGeo, occluderMaterial);
-      for (const o of [face, skull, body]) { o.renderOrder = -1; o.frustumCulled = false; }
+      // The neck: from the jawline straight down, in front of all the hair, so hair never shows
+      // on the neck.
+      const neckGeo = new THREE.BufferGeometry();
+      neckGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NECK_JAW.length * 2 * 3), 3));
+      const neckIdx = [];
+      for (let i = 0; i < NECK_JAW.length - 1; i++) neckIdx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+      neckGeo.setIndex(neckIdx);
+      const neck = new THREE.Mesh(neckGeo, occluderMaterial);
+      for (const o of [face, skull, body, neck]) { o.renderOrder = -1; o.frustumCulled = false; }
       skull.matrixAutoUpdate = false;
       // Drawn just behind the strands at the same depth, so the strands always sit on top.
       const under = ribbonMesh(GUIDES * 2, POINTS, new THREE.MeshBasicMaterial({
@@ -1009,9 +1079,12 @@
       }));
       const hairMesh = ribbonMesh(STRANDS, POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
       const beardMesh = ribbonMesh(BEARD_STRANDS.length, BEARD_POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-      group.add(face, skull, body, under, hairMesh, beardMesh);
+      // The beard sits on top of the face and neck, so it's drawn last and isn't hidden by them.
+      beardMesh.material.depthTest = false;
+      beardMesh.renderOrder = 10;
+      group.add(face, skull, body, neck, under, hairMesh, beardMesh);
       scene.add(group);
-      t.gfx = { group, face, skull, body, under, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
+      t.gfx = { group, face, skull, body, neck, under, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
     }
 
     function disposeGfx(t) {
@@ -1029,7 +1102,7 @@
 
     function updatePerson(t, count, dt, time) {
       if (!t.gfx) makeGfx(t);
-      const G = t.gfx, hf = headFrame(t.face), S = hf.S;
+      const G = t.gfx, hf = headFrame(t.face, t.rot), S = hf.S;
       const showHair = t.hair.ready && hair.length > 0.005;
       G.group.visible = t.fade > 0.5;
 
@@ -1041,14 +1114,23 @@
       const tip = t.face[NOSE_TIP];
       fp.setXYZ(FACE_OVAL.length, tip.x, tip.y, tip.z);
       fp.needsUpdate = true;
+      // The neck hangs from the jaw, a little narrower than it, down past the shoulders.
+      const np = G.neck.geometry.attributes.position, chin = t.face[CHIN], down = scale3(hf.U, -4 * S);
+      NECK_JAW.forEach((j, i) => {
+        const p = t.face[j];
+        np.setXYZ(i * 2, p.x, p.y, tip.z);
+        const bx = p.x + (chin.x - p.x) * 0.2, by = p.y + (chin.y - p.y) * 0.2;
+        np.setXYZ(i * 2 + 1, bx + down.x, by + down.y, tip.z);
+      });
+      np.needsUpdate = true;
 
-      if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = false; }
+      if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = G.neck.visible = false; }
       else {
         const shape = fitShape(t, hf);
         if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) G.roots = makeRoots(shape.front);
-        G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = true;
+        G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = G.neck.visible = true;
         ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.985, shape.b * 0.985, shape.c * 0.985);
-        const pal = t.hair.palette.map(hexRgb);
+        const pal = hairPalette(t);
 
         const head = t.m.head, bp = G.body.geometry.attributes.position, bz = hf.O.z;
         for (let c = 0; c < SHOULDER_BINS; c++) {
@@ -1126,6 +1208,51 @@
 
       drawBeard(t, hf, dt);
     }
+
+    // ---------- Dye ----------
+    // Natural keeps each person's own colours; any other dye replaces them, for hair and beard,
+    // with six shades from dark to light so it keeps its depth and highlights.
+    const DYES = [
+      ['Natural', null], ['Jet black', '#141112'], ['Brown', '#5b3a22'], ['Auburn', '#7c2f1c'],
+      ['Ginger', '#b5561f'], ['Blonde', '#d7b36a'], ['Platinum', '#e8e2d4'], ['Pink', '#e0679c'],
+      ['Blue', '#2f6fd6'], ['Green', '#2f9c62'], ['Purple', '#8a3fd1']
+    ];
+    let dye = null; // null means natural
+
+    function dyePalette(hex) {
+      const [r, g, b] = hexRgb(hex);
+      return [0.42, 0.58, 0.74, 0.9, 1.05, 1.22].map(k => {
+        // Lighter shades also move a little towards white, so pale dyes still have highlights.
+        const lift = Math.max(0, k - 1) * 0.5;
+        const c = v => Math.round(Math.min(1, v * k + lift * (1 - v)) * 255);
+        return `rgb(${c(r)},${c(g)},${c(b)})`;
+      });
+    }
+    let dyed = null;
+    const dyeDot = $('dyeDot'), swatches = $('swatches'), dyeCustom = $('dyeCustom');
+
+    function setDye(hex) {
+      dye = hex;
+      dyed = hex ? dyePalette(hex) : null;
+      dyeDot.style.background = hex || '';
+      for (const b of swatches.children) b.setAttribute('aria-checked', String(b.dataset.hex === (hex || '')));
+    }
+    for (const [name, hex] of DYES) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'swatch';
+      b.setAttribute('role', 'radio');
+      b.dataset.hex = hex || '';
+      b.innerHTML = `<i style="background:${hex || 'conic-gradient(#2a1d15, #7a4a2a, #c9a25a, #2a1d15)'}"></i>${name}`;
+      b.addEventListener('click', () => setDye(hex));
+      swatches.append(b);
+    }
+    dyeCustom.addEventListener('input', () => setDye(dyeCustom.value));
+    setDye(null);
+
+    // The colours to draw someone's hair and beard in.
+    const hairPalette = t => (dyed || t.hair.palette).map(hexRgb);
+    const beardPalette = t => (dyed || (t.hair.ready ? t.hair.palette : t.beardPalette)).map(hexRgb);
 
     // ---------- Beard ----------
     // Strands rooted between the jaw and the mouth (with sideburns at the ears), plus a moustache
@@ -1305,8 +1432,8 @@
       if (!mesh.visible) return;
       const now = performance.now();
       if (!t.beardPalette || (t.beardSampledAt ?? 0) < now - 1000) { sampleBeardColours(t); t.beardSampledAt = now; }
-      // Their own hair colour once it's been measured, since beards usually match it.
-      const pal = (t.hair.ready ? t.hair.palette : t.beardPalette).map(hexRgb);
+      // Their own hair colour once it's been measured (beards usually match it), or the dye.
+      const pal = beardPalette(t);
       const f = t.face, S = hf.S;
       const mouth = scale3(add3(f[13], f[14]), 0.5);
       const lips = new Float32Array(LIPS.flatMap(j => [f[j].x, f[j].y]));
@@ -1448,8 +1575,8 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: MOBILE
-            ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-            : { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+            ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }
+            : { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
           audio: false
         });
         video.srcObject = stream;
@@ -1473,7 +1600,8 @@
           landmarker = await createTask(FaceLandmarker, {
             baseOptions: { modelAssetPath: FACE_MODEL },
             runningMode: 'VIDEO',
-            numFaces: MAX_FACES
+            numFaces: MAX_FACES,
+            outputFacialTransformationMatrixes: true
           });
           faceBadge.textContent = 'Looking for faces…';
         } catch (err) {
