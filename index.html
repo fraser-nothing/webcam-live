@@ -67,7 +67,7 @@
     const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
     // Segments each pixel into background, hair, body skin, face skin, clothes, other.
     const SEGMENT_MODEL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite';
-    const HAIR_CATEGORY = 1;
+    const HAIR_CATEGORY = 1, BODY_SKIN = 2, CLOTHES = 4;
 
     const $ = id => document.getElementById(id);
     const video = $('video'), canvas = $('canvas'), hairCanvas = $('hairCanvas');
@@ -308,7 +308,8 @@
     const LOCKS = MOBILE ? 140 : 280; // simulated guide strands per person
     const NODES = 8;                 // segments per guide strand
     const ITERATIONS = MOBILE ? 3 : 4; // constraint passes per frame
-    const STRAND_BUDGET = MOBILE ? 1400 : 4000; // drawn strands, shared between everyone
+    const STRAND_BUDGET = MOBILE ? 1600 : 5000; // drawn strands, shared between everyone
+    const SHOULDER_BINS = 41;        // columns across the body, 2 face heights either side
     const HAIR_SCALE = MOBILE ? 0.6 : 1; // hair is drawn at this fraction of the video's size
     const GRAVITY = 3.2;             // face heights per second²
     // The scalp part is drawn once into a cached image that follows the head; it's only
@@ -337,6 +338,12 @@
         last: null,                                  // head centre last frame, to spot jumps
         outline: new Float32Array(BINS).fill(0.62),  // head centre to the edge of their hair
         hairline: new Float32Array(BINS).fill(0.5),  // head centre to where their hair starts
+        // How far below the head's centre their neck and shoulders start, in face heights,
+        // across the body. Hair behind them is hidden. Starts as a typical shape.
+        shoulders: Float32Array.from({ length: SHOULDER_BINS }, (_, c) => {
+          const x = Math.abs(-2 + 4 * c / (SHOULDER_BINS - 1));
+          return x < 0.35 ? 0.72 : 1 + (x - 0.35) * 0.12;
+        }),
         palette: ['#2a1d15', '#35251a', '#402d20', '#4d3727', '#5c4331', '#6e533e']
       };
     }
@@ -363,7 +370,10 @@
           curlFreq: 4 + rnd() * 9,
           phase: rnd() * Math.PI * 2,
           lengthF: 0.8 + rnd() * 0.35,
-          stiffness: 0.5 + rnd() * 0.5
+          stiffness: 0.5 + rnd() * 0.5,
+          // About half the locks at the sides fall in front of the shoulders, framing the face;
+          // the rest fall behind the shoulders and neck, the way long hair is usually worn.
+          front: Math.abs(angle) > 1.0 && rnd() < 0.5
         };
       });
       const strands = Array.from({ length: 5000 }, () => {
@@ -550,6 +560,21 @@
           }
           if (colours.length > 20) st.palette = paletteFrom(colours);
         }
+        // Trace their neck and shoulders: in each column across the body, the first body-skin
+        // or clothing pixel below the chin.
+        for (let c = 0; c < SHOULDER_BINS; c++) {
+          const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
+          for (let d = 0.55; d < 3; d += 0.02) {
+            const x = head.cx + (hx * rx - d * head.ux) * S, y = head.cy + (hx * ry - d * head.uy) * S;
+            const mx = Math.round(x * mw / w), my = Math.round(y * mh / h);
+            if (mx < 0 || my < 0 || mx >= mw || my >= mh) break;
+            const cat = cats[my * mw + mx];
+            if (cat === BODY_SKIN || cat === CLOTHES) {
+              st.shoulders[c] = st.ready ? st.shoulders[c] + (d - st.shoulders[c]) * 0.35 : d;
+              break;
+            }
+          }
+        }
         st.ready = true;
         st.updatedAt = performance.now();
       }
@@ -574,10 +599,10 @@
     // head-local pixels, with a head size of S pixels.
     function buildScalp(ctx, st, S, count) {
       const total = hair.length * S;
-      const width = Math.max(0.8, S * 0.0032);
+      const width = Math.max(0.9, S * 0.0042);
       const paths = st.palette.map(() => new Path2D());
       const volume = new Path2D();
-      const STEPS = 5;
+      const STEPS = 6;
 
       for (let n = 0; n < count; n++) {
         const s = strands[n], L = locks[s.li];
@@ -585,14 +610,15 @@
         const scalp = Math.min(total * s.lengthF, g.scalp * S);
         if (scalp <= 0) continue;
         const [ox, oy] = outward(s.angle), [tx, ty] = alongScalp(s.angle, s.side);
-        // Combed back over the head, curving slightly towards the strand's side.
-        let dx = ox + tx * 0.2, dy = oy + ty * 0.2;
-        const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
-        let x = ox * g.rootR * S, y = oy * g.rootR * S, px = x, py = y;
-        const path = paths[s.shade], vol = n % 5 === 0;
+        let x = ox * g.rootR * S, y = oy * g.rootR * S, px = x, py = y, dx = ox, dy = oy;
+        const path = paths[s.shade], vol = n % 2 === 0;
         path.moveTo(x, y);
         if (vol) volume.moveTo(x, y);
         for (let k = 1; k <= STEPS; k++) {
+          // Swept back and away from a centre parting, curving round the head as it goes.
+          const sweep = 0.35 + 0.55 * k / STEPS;
+          dx = ox + tx * sweep; dy = oy + ty * sweep;
+          const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
           x += dx * scalp / STEPS; y += dy * scalp / STEPS;
           const curl = Math.sin(k / STEPS * L.curlFreq + L.phase) * L.curlAmp * S * 0.25;
           const qx = x - dy * curl, qy = y + dx * curl;
@@ -603,24 +629,31 @@
         path.lineTo(px, py);
         if (vol) volume.lineTo(px, py);
       }
-      strokeHair(ctx, st.palette, paths, volume, width);
+      strokeHair(ctx, st.palette, paths, volume, width, width * 3);
     }
 
-    function strokeHair(ctx, palette, paths, volume, width) {
+    function strokeHair(ctx, palette, paths, body, width, bodyWidth) {
+      const alpha = ctx.globalAlpha;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      // A soft, darker underlayer gives the hair body so it isn't see-through.
-      ctx.globalAlpha *= 0.5;
-      ctx.strokeStyle = palette[0];
-      ctx.lineWidth = width * 5;
-      ctx.stroke(volume);
-      ctx.globalAlpha *= 0.88 / 0.5;
+      // A solid underlayer in the mid shades gives the hair its thickness, so it never looks
+      // see-through; the strands on top give it texture and cover its edges.
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.strokeStyle = palette[1];
+      ctx.lineWidth = bodyWidth;
+      ctx.stroke(body);
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.strokeStyle = palette[2];
+      ctx.lineWidth = bodyWidth * 0.5;
+      ctx.stroke(body);
       // Then the individual strands, darkest first so highlights sit on top.
+      ctx.globalAlpha = alpha * 0.9;
       paths.forEach((p, i) => {
         ctx.strokeStyle = palette[i];
         ctx.lineWidth = i === 5 ? width * 0.7 : width;
         ctx.stroke(p);
       });
+      ctx.globalAlpha = alpha;
     }
 
     // Redraw a person's cached scalp image at their current head size and hair length.
@@ -766,25 +799,25 @@
       });
     }
 
-    // Draw the free-hanging part of each strand, following its guide.
-    function drawFreeHair(t, count) {
+    // Draw the free-hanging part of the front or back locks, each strand following its guide.
+    function drawFreeHair(t, count, front) {
       const st = t.hair, head = t.m.head, S = head.size;
       const total = hair.length * S;
-      const width = Math.max(0.8, S * 0.0032);
+      const width = Math.max(0.9, S * 0.0042);
       const paths = st.palette.map(() => new Path2D());
-      const volume = new Path2D();
+      const body = new Path2D();
       const pts = new Float32Array((NODES + 1) * 2);
 
-      // Thick, soft guides first, for body.
-      for (const G of st.guides) {
-        if (G.free <= S * 0.01) continue;
-        volume.moveTo(G.p[0], G.p[1]);
-        for (let i = 1; i <= NODES; i++) volume.lineTo(G.p[i * 2], G.p[i * 2 + 1]);
-      }
+      // The solid body follows the guides but stops short of the tips, so the ends stay wispy.
+      st.guides.forEach((G, li) => {
+        if (G.free <= S * 0.01 || locks[li].front !== front) return;
+        body.moveTo(G.p[0], G.p[1]);
+        for (let i = 1; i < NODES; i++) body.lineTo(G.p[i * 2], G.p[i * 2 + 1]);
+      });
 
       for (let n = 0; n < count; n++) {
         const s = strands[n], L = locks[s.li], G = st.guides[s.li];
-        if (G.free <= S * 0.01) continue;
+        if (G.free <= S * 0.01 || L.front !== front) continue;
         const geo = strandGeometry(st, s.angle, s.depth);
         const free = total * s.lengthF - geo.scalp * S;
         if (free <= 0) continue;
@@ -811,7 +844,28 @@
         }
         path.lineTo(pts[NODES * 2], pts[NODES * 2 + 1]);
       }
-      strokeHair(hairCtx, st.palette, paths, volume, width);
+      strokeHair(hairCtx, st.palette, paths, body, width, S * 0.028);
+    }
+
+    // Hide whatever has been drawn behind a person's neck and shoulders.
+    function cutBehindBody(t) {
+      const st = t.hair, head = t.m.head, S = head.size;
+      const alpha = hairCtx.globalAlpha;
+      hairCtx.globalAlpha = 1;
+      hairCtx.globalCompositeOperation = 'destination-out';
+      hairCtx.beginPath();
+      for (let c = 0; c < SHOULDER_BINS; c++) {
+        const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
+        const [x, y] = toScreen(head, hx * S, st.shoulders[c] * S);
+        c ? hairCtx.lineTo(x, y) : hairCtx.moveTo(x, y);
+      }
+      for (const [x, y] of [[3, st.shoulders[SHOULDER_BINS - 1]], [3, 8], [-3, 8], [-3, st.shoulders[0]]]) {
+        hairCtx.lineTo(...toScreen(head, x * S, y * S));
+      }
+      hairCtx.closePath();
+      hairCtx.fill();
+      hairCtx.globalCompositeOperation = 'source-over';
+      hairCtx.globalAlpha = alpha;
     }
 
     function drawHair(w, h, now, dt) {
@@ -845,9 +899,12 @@
         simulate(t, dt, now / 1000);
         const sp = t.hair.sprite, head = t.m.head;
         hairCtx.globalAlpha = t.fade;
-        // Hanging hair first, then the scalp on top so the roots look continuous.
+        // Hair falling behind the shoulders, hidden by the body; then the locks falling in
+        // front; then the scalp on top so the roots look continuous.
         hairCtx.setTransform(HAIR_SCALE, 0, 0, HAIR_SCALE, 0, 0);
-        drawFreeHair(t, count);
+        drawFreeHair(t, count, false);
+        cutBehindBody(t);
+        drawFreeHair(t, count, true);
         if (sp) {
           const k = head.size / sp.S * HAIR_SCALE;
           hairCtx.globalAlpha = t.fade;
