@@ -11,25 +11,27 @@
     body { display: flex; align-items: center; justify-content: center; }
     video { display: none; }
     canvas { width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
-    #status { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
+    #status { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
     #status[hidden] { display: none; }
     button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid #555; background: #222; color: #eee; cursor: pointer; }
     button:hover { background: #333; }
-    #controls { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); font-size: 13px; }
-    #controls[hidden] { display: none; }
+    #controls { position: fixed; z-index: 20; -webkit-backdrop-filter: blur(8px); left: 16px; bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); font-size: 13px; }
     #controls span { opacity: .7; align-self: center; }
     #controls label { display: flex; align-items: center; gap: 8px; }
-    #face { position: fixed; top: 16px; left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
+    #gazeReadout { position: fixed; z-index: 20; top: 16px; right: 16px; font: 12px/1.5 ui-monospace, Menlo, monospace; padding: 6px 10px; border-radius: 6px; background: rgba(0,0,0,.55); white-space: pre; }
+    #face { position: fixed; z-index: 20; top: 16px; left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
   </style>
 </head>
 <body>
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
   <div id="face" hidden>Looking for your face…</div>
-  <div id="controls" hidden>
+  <div id="gazeReadout" hidden></div>
+  <div id="controls">
     <label><input id="gazeOn" type="checkbox" checked> Eye contact</label>
+    <label><input id="gazeDebug" type="checkbox"> Show gaze</label>
     <span>Pulse:</span>
-    <label><input id="pulseEyes" type="checkbox" checked> Eyes</label>
+    <label><input id="pulseEyes" type="checkbox"> Eyes</label>
     <label><input id="pulseNose" type="checkbox"> Nose</label>
     <label><input id="pulseMouth" type="checkbox"> Mouth</label>
     <label>Speed <input id="speed" type="range" min="0.2" max="4" step="0.1" value="1.2"></label>
@@ -49,13 +51,14 @@
     const message = document.getElementById('message');
     const retry = document.getElementById('retry');
     const faceBadge = document.getElementById('face');
-    const controls = document.getElementById('controls');
     const speed = document.getElementById('speed');
     const amount = document.getElementById('amount');
     const pulseEyes = document.getElementById('pulseEyes');
     const pulseNose = document.getElementById('pulseNose');
     const pulseMouth = document.getElementById('pulseMouth');
     const gazeOn = document.getElementById('gazeOn');
+    const gazeDebug = document.getElementById('gazeDebug');
+    const gazeReadout = document.getElementById('gazeReadout');
 
     // Landmark indices from MediaPipe's 478-point face mesh.
     const EYES = [
@@ -104,24 +107,37 @@
         return c + d * mix(1.0 / scale, 1.0, smoothstep(0.0, 1.0, dist));
       }
 
-      // Lift the iris and pupil so they look into the camera. Only a small circle around the
-      // iris moves, and it is clipped to the eye opening so lids, corners and skin stay put.
-      // The iris slides up under the top lid; below it the mask fades gently to avoid folding.
-      vec2 gaze(vec2 p, vec2 c, vec2 u, vec2 ab, vec2 t, float ir, vec2 s) {
-        if (ab.x <= 0.0 || ab.y <= 0.0 || ir <= 0.0) return p;
+      // Redraw the iris and pupil higher so they look into the camera. The iris is copied to
+      // its new spot, the gap it leaves is filled with the white of the eye from beside it on the
+      // same row, and everything is clipped to the eye opening so it tucks under the top lid.
+      // Lids, corners and skin are never touched.
+      vec4 eyeContact(vec2 p, vec4 col, vec2 c, vec2 u, vec2 ab, vec2 t, float ir, vec2 s) {
+        if (ab.x <= 0.0 || ab.y <= 0.0 || ir <= 0.0 || length(s) < 0.05) return col;
+        vec2 v = vec2(-u.y, u.x);
         vec2 d = p - c;
-        vec2 l = vec2(dot(d, u) / ab.x, dot(d, vec2(-u.y, u.x)) / ab.y);
-        float e = length(l);
-        float lid = l.y < 0.0 ? 1.0 - smoothstep(0.85, 1.0, e) : 1.0 - smoothstep(0.3, 1.0, e);
-        float disc = 1.0 - smoothstep(1.0, 2.2, length(p - t) / ir);
-        return p + s * disc * lid;
+        float inside = 1.0 - smoothstep(0.9, 1.0, length(vec2(dot(d, u) / ab.x, dot(d, v) / ab.y)));
+        if (inside <= 0.0) return col;
+
+        vec2 o = t + s; // where the iris really is
+        vec2 fromO = p - o;
+        float ox = dot(fromO, u), oy = dot(fromO, v);
+        float edge = 1.2 * ir;
+        float reach = sqrt(max(edge * edge - oy * oy, 0.0));
+        vec2 white = p + u * ((ox >= 0.0 ? reach : -reach) - ox);
+        float vacated = 1.0 - smoothstep(0.95, 1.2, length(fromO) / ir);
+        vec4 filled = mix(col, texture2D(tex, white / res), vacated);
+
+        float irisW = 1.0 - smoothstep(0.9, 1.1, length(p - t) / ir);
+        vec4 moved = mix(filled, texture2D(tex, (p + s) / res), irisW);
+        return mix(col, moved, inside);
       }
 
       void main() {
         vec2 p = vUv * res;
         for (int i = 0; i < 4; i++) p = pulse(p, pulseCentre[i], pulseRadius[i]);
-        for (int i = 0; i < 2; i++) p = gaze(p, centre[i], axis[i], size[i], iris[i], irisR[i], shift[i]);
-        gl_FragColor = texture2D(tex, p / res);
+        vec4 col = texture2D(tex, p / res);
+        for (int i = 0; i < 2; i++) col = eyeContact(p, col, centre[i], axis[i], size[i], iris[i], irisR[i], shift[i]);
+        gl_FragColor = col;
       }`;
 
     function compile(type, src) {
@@ -270,15 +286,23 @@
         const wave = Math.sin(now / 1000 * Math.PI * 2 * Number(speed.value));
         // Grows up to (1 + amount) and shrinks down to 1 / (1 + amount).
         const scale = Math.pow(1 + Number(amount.value), wave);
-        // Lift each iris by roughly as far as the eyes have dropped, capped so the warp stays
-        // clean: at most ~half an iris, and never more than the lower mask can absorb.
+        // Lift each iris by roughly as far as the eyes have dropped, capped so it still looks
+        // natural: at most 0.8 of an iris radius, and no more than half the eye opening's height.
         // MediaPipe reports ~0.2 "down" even when looking straight at the lens, so ignore that much.
         const down = Math.max(0, gaze.down - 0.15);
         const lift = eyes.map(e => {
           if (!gazeOn.checked) return 0;
           const blink = clamp((e.open - 0.12) / 0.08, 0, 1);
-          return Math.min(down * 1.5 * e.ir, 0.6 * e.ir, 0.4 * e.b) * blink * e.fade * gaze.fade;
+          return Math.min(down * 2.5 * e.ir, 0.8 * e.ir, e.b) * blink * e.fade * gaze.fade;
         });
+
+        gazeReadout.hidden = !gazeDebug.checked;
+        if (gazeDebug.checked) {
+          gazeReadout.textContent =
+            `looking down  ${gaze.down.toFixed(2)}  (ignored below 0.15)\n` +
+            `iris radius   ${eyes.map(e => e.ir.toFixed(1)).join(' / ')} px\n` +
+            `lift          ${lift.map(l => l.toFixed(1)).join(' / ')} px`;
+        }
 
         const f = (fn) => new Float32Array(eyes.flatMap(fn));
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
@@ -317,13 +341,12 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
         video.srcObject = stream;
         await video.play();
         status.hidden = true;
-        controls.hidden = false;
       } catch (err) {
         const reasons = {
           NotAllowedError: 'Camera permission was denied. Allow it in your browser (and in System Settings → Privacy & Security → Camera), then try again.',
