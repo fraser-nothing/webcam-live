@@ -51,7 +51,7 @@
     .station { display: flex; align-items: center; justify-content: center; gap: 22px; flex: 1; min-height: 0; width: 100%; }
     .mirror {
       position: relative;
-      width: min(1100px, 100%, calc((100dvh - 250px) * 4 / 3));
+      width: min(1100px, 100%, calc((100dvh - 285px) * 4 / 3));
       aspect-ratio: 4 / 3;
       padding: 14px;
       border-radius: 30px;
@@ -64,6 +64,10 @@
       box-shadow: inset 0 0 0 2px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.6);
     }
     .glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    .glass canvas#flagCanvas { transform: none; pointer-events: none; z-index: 4; }
+    .mullet { font: 400 16px/1 "Bebas Neue", sans-serif; letter-spacing: .14em; color: var(--muted); background: none; padding: 4px 10px; }
+    .mullet:hover { color: var(--brass-hi); }
+    .mullet b { color: var(--red); font-weight: 400; }
     /* A soft glare across the glass and darker edges. */
     .glass::after {
       content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
@@ -129,7 +133,7 @@
     @media (max-width: 700px) {
       body { gap: 10px; padding-left: 10px; padding-right: 10px; }
       .tagline { display: none; }
-      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 190px) * 3 / 4)); padding: 10px; border-radius: 24px; }
+      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 222px) * 3 / 4)); padding: 10px; border-radius: 24px; }
       .glass { border-radius: 16px; }
       .big { padding: 13px 14px; font-size: 19px; gap: 8px; flex: 1; justify-content: center; }
       .chair { width: 100%; }
@@ -149,6 +153,7 @@
         <video id="video" autoplay playsinline muted></video>
         <canvas id="canvas"></canvas>
         <canvas id="hairCanvas"></canvas>
+        <canvas id="flagCanvas"></canvas>
         <div id="face" hidden>Looking for faces…</div>
         <div id="status">
           <p id="message">Requesting camera access…</p>
@@ -195,6 +200,8 @@
       </div>
     </div>
   </div>
+
+  <button id="mulletMe" class="mullet" type="button"><b>★</b> Mullet Me <b>★</b></button>
 
   <script type="module">
     import { FaceLandmarker, ImageSegmenter, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
@@ -624,6 +631,8 @@
 
     resetHair.addEventListener('click', () => {
       hair.target = 0;
+      hair.mullet = 0;
+      mullet.cutAt = Infinity;
       resetHair.hidden = true;
     });
 
@@ -893,7 +902,7 @@
       const faceHalf = hf.width * 0.47;
 
       for (const G of t.gfx.roots.guides) {
-        const len = total * G.lengthF;
+        const len = styledLength(G.dir, total * G.lengthF, S);
         // While growing, new length is added without any speed, so strands don't whip about.
         const growing = G.len !== undefined && len > G.len + 1e-6;
         G.len = len;
@@ -1207,6 +1216,167 @@
       }
 
       drawBeard(t, hf, dt);
+    }
+
+    // ---------- Mullet Me ----------
+    // Grows the hair out long, then cuts the top, front and sides short and leaves the back
+    // long: business in the front, party in the back. A US flag flies across the mirror and a
+    // fast bluegrass banjo tune plays (synthesised here, so no audio files are needed).
+    const MULLET_SHORT = 0.13;       // face heights left on top, front and sides
+    const mullet = { cutAt: Infinity, flagFrom: -Infinity, audio: null };
+    hair.mullet = 0;                 // 0 = normal, 1 = fully cut into a mullet
+
+    // How long a strand from this direction on the head should be for the current style.
+    function styledLength(d, full, S) {
+      if (hair.mullet <= 0) return full;
+      // Everything but the back of the head is cut short.
+      const front = Math.max(0, Math.min(1, (d.z + 0.35) / 0.3));
+      return full + (Math.min(full, MULLET_SHORT * S) - full) * hair.mullet * front;
+    }
+
+    $('mulletMe').addEventListener('click', async () => {
+      if (!hair.segmenter && !hair.loading) await loadSegmenter();
+      if (!hair.segmenter) return;
+      hair.mullet = 0;
+      hair.target = Math.max(hair.target, 1.6);
+      resetHair.hidden = false;
+      const now = performance.now();
+      mullet.cutAt = now + 1600;     // let it grow out first, then the barber gets to work
+      mullet.flagFrom = now + 1200;
+      playBanjo();
+    });
+
+    function updateMullet(now) {
+      if (now >= mullet.cutAt) hair.mullet = Math.min(1, (now - mullet.cutAt) / 900);
+    }
+
+    // The flag: drawn once, then drawn in thin slices each frame, each slice shifted and shaded
+    // by a travelling wave so it ripples as it flies across.
+    const flagCanvas = $('flagCanvas'), flagCtx = flagCanvas.getContext('2d');
+    const flagImage = (() => {
+      const W = 494, H = 260, c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const g = c.getContext('2d');
+      for (let i = 0; i < 13; i++) { g.fillStyle = i % 2 ? '#ffffff' : '#b22234'; g.fillRect(0, i * H / 13, W, H / 13 + 1); }
+      const cw = W * 0.4, ch = H * 7 / 13;
+      g.fillStyle = '#3c3b6e'; g.fillRect(0, 0, cw, ch);
+      g.fillStyle = '#ffffff';
+      const star = (x, y, r) => {
+        g.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * 0.4 : r;
+          g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        g.fill();
+      };
+      // 50 stars: rows of six and five.
+      for (let row = 0; row < 9; row++) {
+        const n = row % 2 ? 5 : 6;
+        for (let k = 0; k < n; k++) star(cw / 12 * (2 * k + 1 + (row % 2)), ch / 10 * (row + 1), ch * 0.055);
+      }
+      return c;
+    })();
+
+    function drawFlag(now) {
+      const t = (now - mullet.flagFrom) / 1000, dur = 5.5;
+      const glassBox = flagCanvas.getBoundingClientRect();
+      const w = Math.round(glassBox.width), h = Math.round(glassBox.height);
+      if (flagCanvas.width !== w || flagCanvas.height !== h) { flagCanvas.width = w; flagCanvas.height = h; }
+      flagCtx.clearRect(0, 0, w, h);
+      if (t < 0 || t > dur) return;
+      const fw = Math.min(w * 0.55, 520), fh = fw * 260 / 494;
+      // Fly in from the left, across the top of the mirror, and out to the right.
+      const x0 = -fw + (w + fw) * (t / dur), y0 = h * 0.06;
+      const slice = 4, amp = fh * 0.06;
+      for (let x = 0; x < fw; x += slice) {
+        const phase = x / fw * Math.PI * 3 - t * 9;
+        // The wave grows away from the flagpole side, like cloth.
+        const k = x / fw, dy = Math.sin(phase) * amp * k;
+        flagCtx.globalAlpha = 0.92;
+        flagCtx.drawImage(flagImage, x / fw * 494, 0, slice / fw * 494 + 0.5, 260, x0 + x, y0 + dy, slice + 0.5, fh);
+        // Shade the folds.
+        const shade = Math.cos(phase) * 0.22 * k;
+        flagCtx.globalAlpha = Math.abs(shade);
+        flagCtx.fillStyle = shade > 0 ? '#ffffff' : '#000000';
+        flagCtx.fillRect(x0 + x, y0 + dy, slice + 0.5, fh);
+      }
+      // The pole.
+      flagCtx.globalAlpha = 1;
+      flagCtx.fillStyle = '#c9a25a';
+      flagCtx.fillRect(x0 - 6, y0 - 8, 6, fh * 1.6);
+      flagCtx.beginPath(); flagCtx.arc(x0 - 3, y0 - 10, 7, 0, Math.PI * 2); flagCtx.fill();
+    }
+
+    // Banjo: each note is a plucked string (Karplus–Strong synthesis), played in fast forward
+    // rolls over G, C and D with a bouncing bass, bluegrass style.
+    function pluck(ctx, freq, bright) {
+      const sr = ctx.sampleRate, len = Math.floor(sr * 0.9), buf = ctx.createBuffer(1, len, sr);
+      const out = buf.getChannelData(0), N = Math.max(2, Math.round(sr / freq));
+      const line = new Float32Array(N);
+      for (let i = 0; i < N; i++) line[i] = Math.random() * 2 - 1;
+      let idx = 0, prev = 0;
+      for (let i = 0; i < len; i++) {
+        const v = line[idx];
+        // Averaging neighbours damps the string; a banjo's bright, quick decay.
+        const next = (v * (0.5 + bright) + prev * (0.5 - bright)) * 0.994;
+        prev = v;
+        line[idx] = next;
+        out[i] = v;
+        idx = (idx + 1) % N;
+      }
+      return buf;
+    }
+
+    function playBanjo() {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (mullet.audio) { mullet.audio.close(); mullet.audio = null; }
+        const ctx = new AC();
+        mullet.audio = ctx;
+        const master = ctx.createGain();
+        master.gain.value = 0.55;
+        // A banjo's twang: cut the lows, lift the upper mids.
+        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 160;
+        const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2400; peak.gain.value = 6;
+        master.connect(hp).connect(peak).connect(ctx.destination);
+        const cache = new Map();
+        const note = (f, at, gain, bright = 0.42) => {
+          const key = f + ':' + bright;
+          if (!cache.has(key)) cache.set(key, pluck(ctx, f, bright));
+          const src = ctx.createBufferSource(), g = ctx.createGain();
+          src.buffer = cache.get(key); g.gain.value = gain;
+          src.connect(g).connect(master);
+          src.start(at);
+        };
+        const G3 = 196, B3 = 246.94, D4 = 293.66, G4 = 392, C4 = 261.63, E4 = 329.63, Fs4 = 369.99, A4 = 440, B4 = 493.88;
+        const chords = {
+          G: { roll: [G3, B3, D4, B4], bass: [98, 146.83] },
+          C: { roll: [C4, E4, G4, E4], bass: [130.81, 196] },
+          D: { roll: [D4, Fs4, A4, Fs4], bass: [146.83, 220] }
+        };
+        const bars = ['G', 'G', 'C', 'G', 'D', 'D', 'G', 'G', 'G', 'C', 'G', 'D', 'G', 'D', 'G', 'G'];
+        const eighth = 60 / 172 / 2, start = ctx.currentTime + 0.05;
+        // Forward roll: index, middle and thumb (the high G drone string) around the chord.
+        const roll = [0, 1, 4, 2, 3, 4, 1, 2];
+        bars.forEach((name, bar) => {
+          const c = chords[name];
+          roll.forEach((r, i) => {
+            const at = start + (bar * 8 + i) * eighth;
+            note(r === 4 ? G4 : c.roll[r], at, r === 4 ? 0.28 : 0.4);
+          });
+          // Boom-chick bass on the beats: root, then fifth.
+          for (let beat = 0; beat < 4; beat++) note(c.bass[beat % 2], start + (bar * 8 + beat * 2) * eighth, 0.32, 0.3);
+        });
+        // Finish on a big G chord, then fade out.
+        const end = start + bars.length * 8 * eighth;
+        [G3, B3, D4, G4, B4].forEach((f, i) => note(f, end + i * 0.03, 0.4));
+        master.gain.setValueAtTime(0.55, end + 0.4);
+        master.gain.linearRampToValueAtTime(0, end + 1.6);
+        setTimeout(() => { if (mullet.audio === ctx) { ctx.close(); mullet.audio = null; } }, (end - ctx.currentTime + 2) * 1000);
+      } catch {
+        // No sound available: the mullet still happens.
+      }
     }
 
     // ---------- Dye ----------
@@ -1555,7 +1725,9 @@
         gl.uniform1f(uniforms.waveAt, -1.5 + 3 * waveClock);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
+        updateMullet(now);
         renderHair(w, h, now, Math.min(0.05, Math.max(0, (now - lastNow) / 1000)));
+        drawFlag(now);
       }
       lastNow = now;
       requestAnimationFrame(render);
