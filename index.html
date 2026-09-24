@@ -56,6 +56,12 @@
     const pulseEyes = document.getElementById('pulseEyes');
     const pulseNose = document.getElementById('pulseNose');
     const pulseMouth = document.getElementById('pulseMouth');
+    // Browsers restore form state on reload; always start from the defaults in the HTML.
+    for (const input of document.querySelectorAll('#controls input')) {
+      input.checked = input.defaultChecked;
+      input.value = input.defaultValue;
+    }
+
     const gazeOn = document.getElementById('gazeOn');
     const gazeDebug = document.getElementById('gazeDebug');
     const gazeReadout = document.getElementById('gazeReadout');
