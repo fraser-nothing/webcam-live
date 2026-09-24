@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Webcam Live</title>
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: #000; color: #eee; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; overflow: hidden; }
+    html, body { margin: 0; height: 100%; height: 100dvh; background: #000; color: #eee; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; overflow: hidden; }
     video { display: none; }
     canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
     #status { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
@@ -19,7 +19,22 @@
     #controls span { opacity: .7; }
     #controls label { display: flex; align-items: center; gap: 8px; }
     #controls button { padding: 5px 12px; font-size: 13px; }
-    #face { position: fixed; z-index: 20; top: 16px; left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
+    #toggleControls { display: none; }
+    #face { position: fixed; z-index: 20; top: max(16px, env(safe-area-inset-top)); left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
+    @media (max-width: 700px) {
+      /* Fill the phone screen rather than letterboxing. */
+      canvas { object-fit: cover; }
+      #controls { left: 8px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; max-width: none;
+                  gap: 10px 16px; padding: 12px; font-size: 14px; }
+      #controls input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
+      /* Sliders get a full row each so they're easy to drag. */
+      #controls label:has(input[type=range]) { flex: 1 1 100%; }
+      #controls input[type=range] { flex: 1; }
+      #controls button { padding: 9px 14px; font-size: 14px; flex: 1; }
+      #toggleControls { display: block; flex: 1 1 100%; }
+      #controls.collapsed { gap: 0; padding: 6px; }
+      #controls.collapsed > :not(#toggleControls) { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -32,11 +47,13 @@
     <label><input id="pulseEyes" type="checkbox"> Eyes</label>
     <label><input id="pulseNose" type="checkbox"> Nose</label>
     <label><input id="pulseMouth" type="checkbox"> Mouth</label>
-    <label><input id="browWobble" type="checkbox"> Eyebrow wobble</label>
+    <label><input id="browWobble" type="checkbox"> Eyebrow wave</label>
+    <label>Wave speed <input id="waveSpeed" type="range" min="0.05" max="1.5" step="0.05" value="0.35"></label>
     <label>Speed <input id="speed" type="range" min="0.2" max="4" step="0.1" value="1.2"></label>
     <label>Size <input id="amount" type="range" min="0" max="1" step="0.01" value="0.6"></label>
     <button id="growHair" type="button">Grow hair</button>
     <button id="resetHair" type="button" hidden>Reset hair</button>
+    <button id="toggleControls" type="button">Hide controls</button>
   </div>
   <div id="status">
     <p id="message">Requesting camera access…</p>
@@ -57,7 +74,16 @@
     const status = $('status'), message = $('message'), retry = $('retry'), faceBadge = $('face');
     const speed = $('speed'), amount = $('amount');
     const pulseEyes = $('pulseEyes'), pulseNose = $('pulseNose'), pulseMouth = $('pulseMouth');
-    const browWobble = $('browWobble'), growHair = $('growHair'), resetHair = $('resetHair');
+    const browWobble = $('browWobble'), waveSpeed = $('waveSpeed'), growHair = $('growHair'), resetHair = $('resetHair');
+
+    // Phones get a lighter load: fewer hair strands and a smaller camera feed.
+    const MOBILE = matchMedia('(max-width: 700px), (pointer: coarse)').matches;
+
+    const controls = $('controls'), toggleControls = $('toggleControls');
+    toggleControls.addEventListener('click', () => {
+      const collapsed = controls.classList.toggle('collapsed');
+      toggleControls.textContent = collapsed ? 'Show controls' : 'Hide controls';
+    });
 
     // Browsers restore form state on reload; always start from the defaults in the HTML.
     for (const input of document.querySelectorAll('#controls input')) {
@@ -103,9 +129,11 @@
       uniform float scale;           // pulse: >1 enlarges, <1 shrinks
       uniform vec2 browOuter[2], browMid[2], browInner[2];
       uniform float browThick[2];    // half the brow's thickness
-      uniform float browAmp;         // 0 = off
+      uniform float browAmp;         // lift in pixels, 0 = off
       uniform vec2 faceRight, faceDown;
-      uniform float waveLen, wavePhase;
+      uniform vec2 browCentre;       // between the brows
+      uniform float browHalfSpan;    // centre to the outer end of a brow
+      uniform float waveAt;          // where the wave is, -1 (one outer end) to 1 (the other)
 
       // Magnify or pinch around c, easing back to no change at radius r so there is no seam.
       vec2 pulse(vec2 p, vec2 c, float r) {
@@ -115,9 +143,11 @@
         return c + d * mix(1.0 / scale, 1.0, smoothstep(0.0, 1.0, dist));
       }
 
-      // Bend a brow up and down with a wave that travels across the face. The brow's arch is
-      // modelled as a parabola through its ends and middle; the push fades out a few brow
-      // thicknesses away from it and past its ends, gently enough that the image never folds.
+      // Lift the brows with a "Mexican wave" that travels from one brow across to the other:
+      // whichever part of a brow the wave is passing lifts up, then settles as it moves on.
+      // The brow's arch is modelled as a parabola through its ends and middle; the lift fades
+      // out a few brow thicknesses away from it and past its ends, gently enough that the
+      // image never folds.
       vec2 brow(vec2 p, vec2 a, vec2 m, vec2 b, float th, float amp) {
         if (amp <= 0.0 || th <= 0.0) return p;
         vec2 ab = b - a;
@@ -128,9 +158,11 @@
         float arch = dot(m - (a + b) * 0.5, faceDown);
         float curveY = dot(a + ab * t - a, faceDown) + 4.0 * t * (1.0 - t) * arch;
         float y = dot(p - a, faceDown);
-        float across = 1.0 - smoothstep(th * 1.2, th * 4.0, abs(y - curveY));
-        float wave = sin(dot(p, faceRight) / waveLen * 6.2831853 - wavePhase);
-        return p - faceDown * (amp * th * wave * along * across);
+        // Fading over at least 2.2x the lift keeps the stretch gentle enough never to fold.
+        float across = 1.0 - smoothstep(th, th + max(th * 6.0, amp * 2.2), abs(y - curveY));
+        float pos = dot(p - browCentre, faceRight) / browHalfSpan;
+        float lift = exp(-pow(pos - waveAt, 2.0) / 0.18);
+        return p + faceDown * (amp * lift * along * across);
       }
 
       void main() {
@@ -168,7 +200,7 @@
 
     const uniforms = {};
     for (const name of ['res', 'scale', 'pulseCentre', 'pulseRadius', 'browOuter', 'browMid', 'browInner',
-                        'browThick', 'browAmp', 'faceRight', 'faceDown', 'waveLen', 'wavePhase']) {
+                        'browThick', 'browAmp', 'faceRight', 'faceDown', 'browCentre', 'browHalfSpan', 'waveAt']) {
       uniforms[name] = gl.getUniformLocation(prog, name);
     }
 
@@ -249,7 +281,7 @@
     const hairCtx = hairCanvas.getContext('2d');
     const BINS = 72;                 // directions around the head used to trace the hair outline
     const MAX_ANGLE = 1.95;          // radians either side of straight up (~112°)
-    const STRAND_COUNT = 5000;
+    const STRAND_COUNT = MOBILE ? 2500 : 5000;
     const SEGMENTS = 14;
     const GROW_STEP = 0.3;           // face heights added per press
 
@@ -388,7 +420,8 @@
         }
         if (colours.length > 200) {
           colours.sort((p, q) => p[0] - q[0]);
-          hair.palette = [0.06, 0.2, 0.38, 0.56, 0.74, 0.92].map(q => {
+          // Biased towards the darker end: bright pixels are usually background showing through.
+          hair.palette = [0.03, 0.1, 0.19, 0.3, 0.42, 0.6].map(q => {
             // Average a small band around each percentile to avoid noisy single pixels.
             const c = Math.floor(q * colours.length), band = Math.max(1, Math.floor(colours.length * 0.03));
             let r = 0, g = 0, b = 0, n = 0;
@@ -505,6 +538,9 @@
     }
 
     // ---------- Render loop ----------
+    // Advanced by elapsed time rather than derived from it, so changing the speed doesn't jump.
+    let waveClock = 0, lastNow = performance.now();
+
     function render(now) {
       const w = video.videoWidth, h = video.videoHeight;
       if (w && h) {
@@ -515,7 +551,7 @@
         }
 
         const fresh = track(w, h);
-        if (fresh && hair.segmenter && hair.target > 0 && face && hair.frame++ % 6 === 0) analyseHair(w, h);
+        if (fresh && hair.segmenter && hair.target > 0 && face && hair.frame++ % (MOBILE ? 10 : 6) === 0) analyseHair(w, h);
 
         const cycle = now / 1000 * Math.PI * 2 * Number(speed.value);
         // Grows up to (1 + amount) and shrinks down to 1 / (1 + amount).
@@ -538,17 +574,21 @@
         gl.uniform2fv(uniforms.browMid, new Float32Array([b[0].mx, b[0].my, b[1].mx, b[1].my]));
         gl.uniform2fv(uniforms.browInner, new Float32Array([b[0].bx, b[0].by, b[1].bx, b[1].by]));
         gl.uniform1fv(uniforms.browThick, new Float32Array([b[0].th, b[1].th]));
-        gl.uniform1f(uniforms.browAmp, browWobble.checked ? 1.4 * Math.min(b[0].fade, b[1].fade) : 0);
+        // About 5% of the face height: a clear, cartoonish lift.
+        gl.uniform1f(uniforms.browAmp, browWobble.checked ? 0.05 * head.size * Math.min(b[0].fade, b[1].fade) : 0);
         gl.uniform2f(uniforms.faceRight, -head.uy, head.ux);
         gl.uniform2f(uniforms.faceDown, -head.ux, -head.uy);
-        // Roughly one and a half waves across each brow.
-        const browLen = Math.hypot(b[0].bx - b[0].ax, b[0].by - b[0].ay) || 1;
-        gl.uniform1f(uniforms.waveLen, browLen / 1.5);
-        gl.uniform1f(uniforms.wavePhase, cycle * 1.5);
+        gl.uniform2f(uniforms.browCentre, (b[0].ax + b[1].ax) / 2, (b[0].ay + b[1].ay) / 2);
+        gl.uniform1f(uniforms.browHalfSpan, Math.hypot(b[1].ax - b[0].ax, b[1].ay - b[0].ay) / 2 || 1);
+        // Sweep from just past one outer end to just past the other, then start again.
+        // Wave speed is passes per second.
+        waveClock = (waveClock + (now - lastNow) / 1000 * Number(waveSpeed.value)) % 1;
+        gl.uniform1f(uniforms.waveAt, -1.5 + 3 * waveClock);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
         drawHair(w, h, now);
       }
+      lastNow = now;
       requestAnimationFrame(render);
     }
 
@@ -565,7 +605,9 @@
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+          video: MOBILE
+            ? { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+            : { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
           audio: false
         });
         video.srcObject = stream;
