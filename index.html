@@ -7,143 +7,177 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Crect x='22' y='12' width='20' height='40' rx='10'/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path='url(%23c)'%3E%3Crect width='64' height='64' fill='%23fff'/%3E%3Cg transform='rotate(-35 32 32)'%3E%3Crect x='-20' y='-40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='-20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='-10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='0' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='10' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='20' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='30' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='40' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='50' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='60' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='70' width='104' height='5' fill='%232c4f8f'/%3E%3Crect x='-20' y='80' width='104' height='5' fill='%23c8352e'/%3E%3Crect x='-20' y='90' width='104' height='5' fill='%232c4f8f'/%3E%3C/g%3E%3C/g%3E%3Crect x='22' y='12' width='20' height='40' rx='10' fill='none' stroke='%237a5a24' stroke-width='2'/%3E%3Crect x='18' y='5' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3Crect x='18' y='50' width='28' height='9' rx='4.5' fill='%23c9a25a'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,600;1,9..144,800&family=Space+Mono:wght@400;700&family=Yellowtail&display=swap" rel="stylesheet">
   <style>
     :root {
       color-scheme: dark;
-      --wall: #0f1412;
-      --wall-2: #16201c;
-      --cream: #f3ead8;
-      --muted: #a79f8f;
+      --bg: #121311;
+      --bg-2: #1a1b18;
+      --paper: #efe6d6;
+      --muted: #9c9587;
+      --line: rgba(239, 230, 214, .16);
       --brass: #c9a25a;
-      --brass-hi: #f1d596;
-      --brass-lo: #7a5a24;
+      --brass-hi: #ecd29a;
+      --brass-lo: #6f5226;
+      --clay: #d4683f;
+      --clay-lo: #8f3f22;
+      --neon: #ff8a6b;
       --red: #c8352e;
       --blue: #2c4f8f;
-      --glass: #0b0d0d;
+      --serif: "Fraunces", Georgia, serif;
+      --mono: "Space Mono", ui-monospace, Menlo, monospace;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; height: 100%; height: 100dvh; overflow: hidden; }
     body {
-      color: var(--cream);
-      font: 15px/1.4 "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
-      /* Dark tiled wall under a warm spotlight. */
+      color: var(--paper);
+      font: 14px/1.45 var(--mono);
+      /* A dark shop wall under a warm spotlight. */
       background:
-        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(241, 213, 150, .16), transparent 70%),
-        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 44px 22px,
-        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 44px 44px,
-        linear-gradient(var(--wall-2), var(--wall));
+        radial-gradient(ellipse 60% 50% at 50% -5%, rgba(236, 210, 154, .18), transparent 70%),
+        radial-gradient(ellipse 80% 60% at 50% 110%, rgba(212, 104, 63, .08), transparent 70%),
+        linear-gradient(var(--bg-2), var(--bg));
       display: flex; flex-direction: column; align-items: center;
-      padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
-      gap: 14px;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      gap: 16px;
     }
+    /* Film grain over everything. */
+    body::before {
+      content: ""; position: fixed; inset: -50%; pointer-events: none; z-index: 50; opacity: .06;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grain 1.2s steps(6) infinite;
+    }
+    @keyframes grain { 0% { transform: translate(0, 0); } 33% { transform: translate(-3%, 2%); } 66% { transform: translate(2%, -3%); } 100% { transform: translate(0, 0); } }
     video { display: none; }
 
     /* ---- Sign ---- */
     header { text-align: center; line-height: 1; }
-    h1 { margin: 0; font: 400 clamp(34px, 5vw, 58px)/.9 "Bebas Neue", sans-serif; letter-spacing: .06em;
-         color: var(--cream); text-shadow: 0 0 18px rgba(241, 213, 150, .35), 0 2px 0 rgba(0,0,0,.6); }
-    h1 span { color: var(--brass-hi); }
-    .tagline { margin-top: 6px; font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: var(--muted); }
-    .tagline::before, .tagline::after { content: ""; display: inline-block; width: 28px; height: 1px; background: var(--brass); vertical-align: middle; margin: 0 10px; }
+    .kicker { font-size: 10.5px; letter-spacing: .34em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .kicker::before, .kicker::after { content: ""; display: inline-block; width: 22px; height: 1px; background: var(--brass); vertical-align: middle; margin: 0 12px; opacity: .7; }
+    h1 { margin: 0; display: flex; align-items: baseline; justify-content: center; gap: .28em; flex-wrap: wrap; }
+    h1 .serif { font: italic 800 clamp(30px, 4.4vw, 54px)/1 var(--serif); letter-spacing: -.01em; color: var(--paper); }
+    h1 .neon {
+      font: 400 clamp(34px, 5vw, 62px)/1 "Yellowtail", cursive; color: #ffe3d8;
+      text-shadow: 0 0 4px #fff3ee, 0 0 12px var(--neon), 0 0 28px var(--neon), 0 0 52px rgba(255, 138, 107, .6);
+      animation: flicker 7s infinite;
+    }
+    @keyframes flicker { 0%, 93%, 96%, 100% { opacity: 1; } 94% { opacity: .55; } 95% { opacity: .9; } 97% { opacity: .7; } }
 
-    /* ---- Mirror, with barber poles either side ---- */
-    .station { display: flex; align-items: center; justify-content: center; gap: 22px; flex: 1; min-height: 0; width: 100%; }
+    /* ---- The station: pole, arched mirror, menu board ---- */
+    .station { display: flex; align-items: center; justify-content: center; gap: 34px; flex: 1; min-height: 0; width: 100%; }
     .mirror {
       position: relative;
-      width: min(1100px, 100%, calc((100dvh - 285px) * 4 / 3));
+      width: min(980px, 100%, calc((100dvh - 250px) * 4 / 3));
       aspect-ratio: 4 / 3;
-      padding: 14px;
-      border-radius: 30px;
-      /* Polished brass frame. */
-      background: linear-gradient(145deg, var(--brass-hi), var(--brass) 30%, var(--brass-lo) 55%, var(--brass) 75%, var(--brass-hi));
-      box-shadow: 0 30px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.5);
+      padding: 9px;
+      border-radius: 50% 50% 26px 26px / 38% 38% 26px 26px;
+      /* A thin polished brass frame with a double pinstripe around it. */
+      background: linear-gradient(160deg, var(--brass-hi), var(--brass) 28%, var(--brass-lo) 58%, var(--brass) 80%, var(--brass-hi));
+      box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 0 9px var(--bg), 0 0 0 10px rgba(201, 162, 90, .35), 0 40px 80px rgba(0,0,0,.6);
     }
     .glass {
-      position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 18px; background: var(--glass);
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.6);
+      position: relative; width: 100%; height: 100%; overflow: hidden; background: #0b0c0b;
+      border-radius: 50% 50% 18px 18px / 37% 37% 18px 18px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.7), inset 0 0 60px rgba(0,0,0,.55);
     }
     .glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-    .glass canvas#flagCanvas { transform: none; pointer-events: none; z-index: 4; }
-    .mullet { font: 400 16px/1 "Bebas Neue", sans-serif; letter-spacing: .14em; color: var(--muted); background: none; padding: 4px 10px; }
-    .mullet:hover { color: var(--brass-hi); }
-    .mullet b { color: var(--red); font-weight: 400; }
-    /* A soft glare across the glass and darker edges. */
+    .glass canvas#flagCanvas { transform: none; pointer-events: none; }
+    /* A soft glare across the glass, and darker edges. */
     .glass::after {
       content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
       background:
-        linear-gradient(115deg, transparent 30%, rgba(255,255,255,.07) 38%, rgba(255,255,255,.02) 46%, transparent 52%),
-        radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.35));
+        linear-gradient(118deg, transparent 32%, rgba(255,255,255,.06) 40%, rgba(255,255,255,.015) 48%, transparent 54%),
+        radial-gradient(ellipse at 50% 55%, transparent 58%, rgba(0,0,0,.4));
     }
-    .pole { display: none; width: 30px; height: min(60%, 420px); position: relative; border-radius: 15px; overflow: hidden;
-            background: repeating-linear-gradient(-45deg, var(--red) 0 16px, #fff 16px 32px, var(--blue) 32px 48px, #fff 48px 64px);
-            background-size: 100% 90.5px; animation: spin 1.6s linear infinite;
-            box-shadow: inset -6px 0 10px rgba(0,0,0,.35), inset 6px 0 8px rgba(255,255,255,.35), 0 0 0 4px var(--brass), 0 10px 24px rgba(0,0,0,.5); }
-    @keyframes spin { to { background-position: 0 90.5px; } }
-    @media (prefers-reduced-motion: reduce) { .pole { animation: none; } }
-    @media (min-width: 1000px) { .pole { display: block; } }
+    .pole { display: none; width: 22px; height: min(58%, 380px); position: relative; border-radius: 11px; overflow: hidden; flex: none;
+            background: repeating-linear-gradient(-45deg, var(--red) 0 12px, #f6f1e7 12px 24px, var(--blue) 24px 36px, #f6f1e7 36px 48px);
+            background-size: 100% 67.9px; animation: spin 1.8s linear infinite;
+            box-shadow: inset -5px 0 8px rgba(0,0,0,.35), inset 5px 0 6px rgba(255,255,255,.4), 0 0 0 3px #d9d6cf, 0 0 0 4px rgba(0,0,0,.4), 0 14px 28px rgba(0,0,0,.5); }
+    @keyframes spin { to { background-position: 0 67.9px; } }
+    .menu { display: none; width: 210px; flex: none; padding: 20px 20px 16px; border: 1px solid var(--line); border-radius: 4px; background: rgba(0,0,0,.25);
+            box-shadow: inset 0 0 0 4px var(--bg), inset 0 0 0 5px var(--line); }
+    .menu h2 { margin: 0 0 12px; font: italic 600 22px/1 var(--serif); color: var(--brass-hi); text-align: center; }
+    .menu ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+    .menu li { display: flex; align-items: baseline; gap: 6px; }
+    .menu li i { flex: 1; border-bottom: 1px dotted rgba(239, 230, 214, .35); transform: translateY(-3px); }
+    .menu li b { font-weight: 400; color: var(--muted); }
+    .menu li.star b { color: var(--neon); }
+    .menu p { margin: 14px 0 0; font-size: 9.5px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted); text-align: center; }
+    @media (prefers-reduced-motion: reduce) { .pole, h1 .neon, body::before { animation: none; } }
+    @media (min-width: 1000px) { .pole, .menu { display: block; } }
 
-    #status { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--cream); }
+    #status { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; color: var(--paper); font-size: 13px; }
     #status[hidden] { display: none; }
-    #face { position: absolute; z-index: 6; top: 14px; left: 14px; font-size: 12px; letter-spacing: .04em; padding: 5px 12px; border-radius: 999px; background: rgba(0,0,0,.6); }
+    #face { position: absolute; z-index: 6; bottom: 16px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; padding: 6px 14px; border-radius: 999px; background: rgba(0,0,0,.6); }
 
     /* ---- Buttons ---- */
     button { font: inherit; cursor: pointer; border: 0; color: inherit; }
     button:disabled { opacity: .6; cursor: default; }
-    .chair { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    button:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 3px; }
+    .chair { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
     .big {
-      display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; border-radius: 999px; white-space: nowrap;
-      font: 400 24px/1 "Bebas Neue", sans-serif; letter-spacing: .08em;
-      color: #1b140a; background: linear-gradient(180deg, var(--brass-hi), var(--brass));
-      box-shadow: 0 6px 0 var(--brass-lo), 0 10px 22px rgba(0,0,0,.45);
-      transition: transform .08s, box-shadow .08s, filter .15s;
+      display: inline-flex; align-items: center; gap: 10px; padding: 15px 26px; border-radius: 999px; white-space: nowrap;
+      font: 700 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+      color: #17140f; background: var(--paper);
+      box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 12px 26px rgba(0,0,0,.45);
+      transition: transform .12s, background .15s;
     }
-    .big:hover { filter: brightness(1.06); }
-    .big:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--brass-lo), 0 4px 10px rgba(0,0,0,.4); }
-    .big svg { width: 22px; height: 22px; }
-    .small { padding: 10px 18px; border-radius: 999px; background: rgba(243, 234, 216, .08); border: 1px solid rgba(243, 234, 216, .2); font-weight: 500; }
-    .small:hover { background: rgba(243, 234, 216, .14); }
-    #retry { padding: 10px 20px; border-radius: 999px; background: var(--brass); color: #1b140a; font-weight: 700; }
+    .big:hover { background: #fff7ea; transform: translateY(-1px); }
+    .big:active { transform: translateY(1px); }
+    .big.clay { background: var(--clay); color: #fff5ee; }
+    .big.clay:hover { background: #e07449; }
+    .big svg { width: 18px; height: 18px; }
+    .small { padding: 12px 16px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+             font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--paper); }
+    .small:hover { border-color: rgba(239, 230, 214, .45); background: rgba(239, 230, 214, .05); }
+    #retry { padding: 12px 22px; border-radius: 999px; background: var(--paper); color: #17140f; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 12px; }
 
     /* ---- Pop-up panels (Dye, Extras) ---- */
     .extras { position: relative; }
     .extras.left .extras-panel { right: auto; left: 0; }
-    .dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; margin-right: 6px;
-           border: 1px solid rgba(243, 234, 216, .5); background: conic-gradient(#2a1d15, #7a4a2a, #c9a25a, #2a1d15); }
-    .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-    .swatch { display: grid; justify-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: none; padding: 0; }
-    .swatch i { width: 40px; height: 40px; border-radius: 50%; border: 2px solid rgba(243, 234, 216, .25); box-shadow: inset 0 -6px 10px rgba(0,0,0,.35); }
-    .swatch[aria-checked="true"] { color: var(--cream); }
-    .swatch[aria-checked="true"] i { border-color: var(--brass-hi); box-shadow: 0 0 0 3px rgba(241, 213, 150, .35), inset 0 -6px 10px rgba(0,0,0,.35); }
-    .custom { display: flex; align-items: center; justify-content: space-between; }
-    .custom input[type=color] { width: 44px; height: 32px; padding: 0; border: 1px solid rgba(243, 234, 216, .3); border-radius: 8px; background: none; cursor: pointer; }
+    .dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 8px;
+           border: 1px solid rgba(239, 230, 214, .5); background: conic-gradient(#2a1d15, #7a4a2a, #c9a25a, #2a1d15); }
+    .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 10px; }
+    .swatch { display: grid; justify-items: center; gap: 6px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: none; padding: 0; }
+    .swatch i { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(239, 230, 214, .25); box-shadow: inset 0 -6px 10px rgba(0,0,0,.35); }
+    .swatch[aria-checked="true"] { color: var(--paper); }
+    .swatch[aria-checked="true"] i { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--brass-hi), inset 0 -6px 10px rgba(0,0,0,.35); }
+    .custom { display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .custom input[type=color] { width: 44px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
     .extras-panel {
-      position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 30; width: min(340px, calc(100vw - 32px));
-      display: grid; gap: 12px; padding: 16px; border-radius: 16px; background: rgba(16, 20, 18, .96);
-      border: 1px solid rgba(201, 162, 90, .5); box-shadow: 0 20px 40px rgba(0,0,0,.5); font-size: 14px;
+      position: absolute; bottom: calc(100% + 12px); right: 0; z-index: 30; width: min(330px, calc(100vw - 32px));
+      display: grid; gap: 14px; padding: 18px; border-radius: 14px; background: rgba(22, 23, 20, .97);
+      border: 1px solid var(--line); box-shadow: 0 24px 48px rgba(0,0,0,.55); font-size: 12px;
     }
     .extras-panel[hidden] { display: none; }
-    .extras-panel h2 { margin: 0; font: 400 20px/1 "Bebas Neue", sans-serif; letter-spacing: .08em; color: var(--brass-hi); }
+    .extras-panel h2 { margin: 0; font: italic 600 20px/1 var(--serif); color: var(--brass-hi); }
     .extras-panel .row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-    .extras-panel label { display: flex; align-items: center; gap: 8px; }
+    .extras-panel label { display: flex; align-items: center; gap: 8px; letter-spacing: .04em; }
     .extras-panel label.slider { justify-content: space-between; }
-    .extras-panel input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--brass); margin: 0; }
-    .extras-panel input[type=range] { flex: 1; max-width: 190px; accent-color: var(--brass); }
+    .extras-panel input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--clay); margin: 0; }
+    .extras-panel input[type=range] { flex: 1; max-width: 180px; accent-color: var(--clay); }
+
+    /* ---- The secret menu item ---- */
+    .mullet { position: fixed; right: 14px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 40;
+              font: 400 10px/1 var(--mono); letter-spacing: .16em; text-transform: lowercase; color: var(--muted);
+              opacity: .38; background: none; padding: 6px; transition: opacity .2s, color .2s; }
+    .mullet:hover, .mullet:focus-visible { opacity: 1; color: var(--neon); }
 
     @media (max-width: 700px) {
-      body { gap: 10px; padding-left: 10px; padding-right: 10px; }
-      .tagline { display: none; }
-      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 222px) * 3 / 4)); padding: 10px; border-radius: 24px; }
-      .glass { border-radius: 16px; }
-      .big { padding: 13px 14px; font-size: 19px; gap: 8px; flex: 1; justify-content: center; }
+      body { gap: 12px; padding-left: 10px; padding-right: 10px; }
+      .kicker { font-size: 9px; margin-bottom: 4px; }
+      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 215px) * 3 / 4)); padding: 7px; box-shadow: 0 0 0 1px rgba(0,0,0,.5), 0 0 0 6px var(--bg), 0 0 0 7px rgba(201, 162, 90, .35), 0 24px 50px rgba(0,0,0,.6); }
+      .big { padding: 14px 12px; font-size: 12px; gap: 8px; flex: 1; justify-content: center; letter-spacing: .1em; }
       .chair { width: 100%; }
+      .small { padding: 10px 14px; }
+      .mullet { bottom: max(4px, env(safe-area-inset-bottom)); right: 8px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Barber Shop <span>Simulator</span></h1>
-    <div class="tagline">Walk-ins welcome</div>
+    <div class="kicker">Est. 2026 · No appointment needed</div>
+    <h1><span class="serif">Barber Shop</span> <span class="neon">Simulator</span></h1>
   </header>
 
   <div class="station">
@@ -152,8 +186,8 @@
       <div class="glass">
         <video id="video" autoplay playsinline muted></video>
         <canvas id="canvas"></canvas>
-        <canvas id="hairCanvas"></canvas>
         <canvas id="flagCanvas"></canvas>
+        <canvas id="hairCanvas"></canvas>
         <div id="face" hidden>Looking for faces…</div>
         <div id="status">
           <p id="message">Requesting camera access…</p>
@@ -161,7 +195,17 @@
         </div>
       </div>
     </div>
-    <div class="pole" aria-hidden="true"></div>
+    <aside class="menu" aria-label="Services">
+      <h2>Services</h2>
+      <ul>
+        <li><span>Grow out</span><i></i><b>Free</b></li>
+        <li><span>Beard</span><i></i><b>Free</b></li>
+        <li><span>Dye job</span><i></i><b>Free</b></li>
+        <li><span>Hot towel</span><i></i><b>Sold out</b></li>
+        <li class="star"><span>The Mullet</span><i></i><b>Priceless</b></li>
+      </ul>
+      <p>Cash only · Tips welcome</p>
+    </aside>
   </div>
 
   <div class="chair">
@@ -169,16 +213,16 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>
       <span>Grow hair</span>
     </button>
-    <button id="growBeard" class="big" type="button">
+    <button id="growBeard" class="big clay" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9c0 7 3.5 11 8 11s8-4 8-11"/><path d="M8 13c1.3-1 2.6-1.5 4-1.5s2.7.5 4 1.5"/></svg>
       <span>Grow beard</span>
     </button>
-    <button id="resetHair" class="small" type="button" hidden>Cut hair</button>
+    <button id="resetHair" class="small" type="button" hidden>Cut</button>
     <button id="shaveBeard" class="small" type="button" hidden>Shave</button>
     <div class="extras left">
       <button id="dyeToggle" class="small" type="button" aria-expanded="false" aria-controls="dye"><span id="dyeDot" class="dot"></span>Dye</button>
       <div id="dye" class="extras-panel" hidden>
-        <h2>Hair dye</h2>
+        <h2>Dye job</h2>
         <div id="swatches" class="swatches" role="radiogroup" aria-label="Hair colour"></div>
         <label class="custom">Custom colour <input id="dyeCustom" type="color" value="#8a3fd1"></label>
       </div>
@@ -201,7 +245,7 @@
     </div>
   </div>
 
-  <button id="mulletMe" class="mullet" type="button"><b>★</b> Mullet Me <b>★</b></button>
+  <button id="mulletMe" class="mullet" type="button" title="Off the menu">psst… mullet me</button>
 
   <script type="module">
     import { FaceLandmarker, ImageSegmenter, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
@@ -553,7 +597,7 @@
     const NODES = MOBILE ? 10 : 13;  // segments per guide strand
     const POINTS = NODES + 1;
     const ITERATIONS = MOBILE ? 3 : 4; // constraint passes per frame
-    const STRANDS = MOBILE ? 1600 : 5500; // drawn strands per person (shared out if several)
+    const STRANDS = MOBILE ? 1800 : 6000; // drawn strands per person (shared out if several)
     const HAIR_SCALE = MOBILE ? 0.75 : 1; // the 3D layer renders at this fraction of the video's size
     const GRAVITY = 3.2;             // face heights per second²
     const GROW_STEP = 0.3;           // face heights added per press
@@ -571,6 +615,7 @@
       length: 0,                     // current length in face heights (animates towards target)
       target: 0,
       frame: 0,
+      sinceSeg: 0,
       analyses: 0,
       sampler: document.createElement('canvas')
     };
@@ -672,10 +717,9 @@
 
     // Segment the frame once, then for each person trace the outline of their real hair, their
     // neck and shoulders, and pick up their hair colours.
-    function analyseHair(w, h) {
-      const result = hair.segmenter.segmentForVideo(video, performance.now());
+    function analyseHair(result, w, h) {
       const mask = result.categoryMask;
-      if (!mask) { result.close(); return; }
+      if (!mask) return;
       const mw = mask.width, mh = mask.height;
       const cats = mask.getAsUint8Array();
       const hairAt = (mx, my) => mx >= 0 && my >= 0 && mx < mw && my < mh && cats[my * mw + mx] === HAIR_CATEGORY;
@@ -789,7 +833,6 @@
         st.ready = true;
         st.updatedAt = performance.now();
       }
-      result.close();
       hair.analyses++;
     }
 
@@ -865,7 +908,9 @@
           lengthF: g.lengthF * (0.8 + rnd() * 0.25),
           shade: Math.min(5, Math.floor(Math.pow(rnd(), 1.3) * 6)),
           curl: (0.004 + rnd() * 0.012), curlFreq: 4 + rnd() * 8, phase: rnd() * Math.PI * 2,
-          spread: (rnd() - 0.5) * 2
+          spread: (rnd() - 0.5) * 2,
+          tone: 0.86 + rnd() * 0.28,     // each strand a touch lighter or darker
+          flyaway: rnd() < 0.04          // the odd stray strand
         });
       }
       return { guides, strands, front };
@@ -895,13 +940,16 @@
       const damping = Math.exp(-dt * 3), g = GRAVITY * S * dt * dt;
       const segs = new Float32Array(NODES);
       // Guides rest just outside the head, standing off it more as the hair gets longer.
-      const m = 1.015 + 0.035 * Math.min(1, hair.length / 1.5) + 0.03 * hair.mullet;
+      const m = 1.02 + 0.06 * Math.min(1, hair.length / 1.5) + 0.03 * hair.mullet;
       // Neck and shoulders: a slab through the body; hair landing on it falls in front of or
       // behind the shoulders instead of through them.
       const head = t.m.head, shoulders = t.hair.shoulders, slab = 0.3 * S;
       // In front of the face, from the brow to the chin, hair can't hang: it's pushed out to the
       // sides, so it parts and falls either side of the face, framing it.
       const browY = toLocal(hf, t.face[FOREHEAD]).y, chinY = toLocal(hf, t.face[CHIN]).y;
+      // Normally the whole face up to the hairline is kept clear, so hair sweeps away from the
+      // forehead; a mullet's fringe is allowed down to just above the brows.
+      const shieldTop = hair.mullet > 0 ? browY + 0.03 * S : Math.max(browY + 0.05 * S, shape.front * b * 0.98);
       const faceHalf = hf.width * 0.47;
 
       for (const G of t.gfx.roots.guides) {
@@ -934,6 +982,26 @@
           const vx = (p[k] - q[k]) * damping, vy = (p[k + 1] - q[k + 1]) * damping, vz = (p[k + 2] - q[k + 2]) * damping;
           q[k] = p[k]; q[k + 1] = p[k + 1]; q[k + 2] = p[k + 2];
           p[k] += vx + breeze * i / NODES; p[k + 1] += vy + g; p[k + 2] += vz;
+        }
+
+        // The cut parts of a mullet hold their shape: short, straight and still, lying on the
+        // head from the root, rather than being simulated.
+        const kin = hair.mullet * clamp01((G.dir.z + 0.4) / 0.25);
+        if (kin > 0.01) {
+          let x = r.x, y = r.y, z = r.z;
+          for (let i = 1; i < POINTS; i++) {
+            const k = i * 3;
+            x += tw.x * segs[i - 1]; y += tw.y * segs[i - 1]; z += tw.z * segs[i - 1];
+            // Back onto the surface of the head, so it follows the head's curve.
+            const dx = x - hf.O.x, dy = y - hf.O.y, dz = z - hf.O.z;
+            const lx = dx * hf.R.x + dy * hf.R.y + dz * hf.R.z, ly = dx * hf.U.x + dy * hf.U.y + dz * hf.U.z, lz = dx * hf.F.x + dy * hf.F.y + dz * hf.F.z;
+            const e = Math.sqrt((lx / a) ** 2 + (ly / b) ** 2 + (lz / c) ** 2) || 1, f = m / e;
+            x = hf.O.x + (hf.R.x * lx + hf.U.x * ly + hf.F.x * lz) * f;
+            y = hf.O.y + (hf.R.y * lx + hf.U.y * ly + hf.F.y * lz) * f;
+            z = hf.O.z + (hf.R.z * lx + hf.U.z * ly + hf.F.z * lz) * f;
+            p[k] += (x - p[k]) * kin; p[k + 1] += (y - p[k + 1]) * kin; p[k + 2] += (z - p[k + 2]) * kin;
+            q[k] = p[k]; q[k + 1] = p[k + 1]; q[k + 2] = p[k + 2];
+          }
         }
 
         for (let it = 0; it < ITERATIONS; it++) {
@@ -976,7 +1044,9 @@
               p[k] += (hf.R.x * lx + hf.U.x * ly + hf.F.x * lz) * f;
               p[k + 1] += (hf.R.y * lx + hf.U.y * ly + hf.F.y * lz) * f;
               p[k + 2] += (hf.R.z * lx + hf.U.z * ly + hf.F.z * lz) * f;
-            } else if (lz > 0.05 * S && ly < browY + (hair.mullet > 0 ? 0.03 : 0.05) * S && ly > chinY - 0.05 * S && Math.abs(lx) < faceHalf) {
+            }
+            // In front of the face: out to the side, whatever else is pushing on it.
+            if (lz > 0.05 * S && ly < shieldTop && ly > chinY - 0.05 * S && Math.abs(lx) < faceHalf) {
               const out = (Math.abs(lx) > 0.05 * S ? Math.sign(lx) : G.side) * faceHalf - lx;
               p[k] += hf.R.x * out; p[k + 1] += hf.R.y * out; p[k + 2] += hf.R.z * out;
             }
@@ -988,7 +1058,9 @@
               if (col >= 0 && col <= SHOULDER_BINS - 1) {
                 const c0 = Math.min(SHOULDER_BINS - 2, Math.floor(col)), cf = col - c0;
                 if (below > shoulders[c0] * (1 - cf) + shoulders[c0 + 1] * cf) {
-                  p[k + 2] = bodyZ + (p[k + 2] >= bodyZ ? slab : -slab);
+                  // A mullet's long back drapes forward over the shoulders; otherwise hair
+                  // falls whichever side of them it's on.
+                  p[k + 2] = bodyZ + (p[k + 2] >= bodyZ || hair.mullet > 0.5 ? slab : -slab);
                 }
               }
             }
@@ -1000,8 +1072,76 @@
       }
     }
 
+    // ---------- Occlusion ----------
+    // Every frame the segmenter labels each pixel of the same video frame the face was found
+    // in. Whether a pixel is neck/body skin, face skin or clothing goes to the GPU (smoothed
+    // between pixels, so edges are soft), and the hair shader uses it: hair behind the head
+    // disappears exactly behind the neck, face and collar, and locks hanging in front still
+    // show over clothes.
+    const occlusion = { data: null, tex: null, w: 0, h: 0, ready: false };
+
+    function updateOcclusion(result) {
+      const mask = result.categoryMask;
+      if (!mask) return;
+      const mw = mask.width, mh = mask.height;
+      const step = Math.max(1, Math.ceil(mw / 384));
+      const ow = Math.ceil(mw / step), oh = Math.ceil(mh / step);
+      if (!occlusion.tex || occlusion.w !== ow || occlusion.h !== oh) {
+        occlusion.data = new Uint8Array(ow * oh * 4);
+        occlusion.tex = new THREE.DataTexture(occlusion.data, ow, oh, THREE.RGBAFormat);
+        occlusion.tex.magFilter = occlusion.tex.minFilter = THREE.LinearFilter;
+        occlusion.w = ow; occlusion.h = oh;
+        hairUniforms.mask.value = occlusion.tex;
+      }
+      const cats = mask.getAsUint8Array();
+      if (!occlusion.raw || occlusion.raw.length !== ow * oh * 4) occlusion.raw = new Uint8Array(ow * oh * 4);
+      const raw = occlusion.raw, d = occlusion.data;
+      for (let y = 0; y < oh; y++) {
+        const row = y * step * mw;
+        for (let x = 0; x < ow; x++) {
+          const c = cats[row + x * step], o = (y * ow + x) * 4;
+          raw[o] = c === BODY_SKIN ? 255 : 0; raw[o + 1] = c === FACE_SKIN ? 255 : 0; raw[o + 2] = c === CLOTHES ? 255 : 0;
+          raw[o + 3] = c === 0 ? 0 : 255; // the person: anything that isn't background
+        }
+      }
+      // Soften the labels' blocky edges with a small blur, so the hair's edge follows the
+      // person's outline smoothly once the mask is stretched over the video.
+      for (let y = 0; y < oh; y++) {
+        const y0 = Math.max(0, y - 1), y1 = Math.min(oh - 1, y + 1);
+        for (let x = 0; x < ow; x++) {
+          const x0 = Math.max(0, x - 1), x1 = Math.min(ow - 1, x + 1), o = (y * ow + x) * 4;
+          for (let ch = 0; ch < 4; ch++) {
+            let sum = 0, n = 0;
+            for (let yy = y0; yy <= y1; yy++) for (let xx = x0; xx <= x1; xx++) { sum += raw[(yy * ow + xx) * 4 + ch]; n++; }
+            d[o + ch] = sum / n;
+          }
+        }
+      }
+      occlusion.tex.needsUpdate = true;
+      occlusion.ready = true;
+      // The same data as a picture of the person, for drawing things behind them.
+      if (!occlusion.person || occlusion.person.width !== ow || occlusion.person.height !== oh) {
+        occlusion.person = document.createElement('canvas');
+        occlusion.person.width = ow; occlusion.person.height = oh;
+      }
+      occlusion.person.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(d.buffer), ow, oh), 0, 0);
+      hairUniforms.useMask.value = 1;
+    }
+
+    // Segment this frame: always for the occlusion mask, and now and then to re-trace hair
+    // outlines, shoulders and colours.
+    function segmentFrame(w, h, analyse) {
+      const result = hair.segmenter.segmentForVideo(video, performance.now());
+      try {
+        updateOcclusion(result);
+        if (analyse) analyseHair(result, w, h);
+      } finally {
+        result.close();
+      }
+    }
+
     // ---------- Three.js scene ----------
-    const renderer = new THREE.WebGLRenderer({ canvas: hairCanvas, alpha: true, antialias: !MOBILE, premultipliedAlpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: hairCanvas, alpha: true, antialias: true, premultipliedAlpha: true });
     renderer.setPixelRatio(1);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // colours are used exactly as sampled
@@ -1013,11 +1153,47 @@
     const LIGHT = norm(v3(0.3, -0.8, 0.55)); // from above and in front (screen y points down)
     const HALF = norm(add3(LIGHT, v3(0, 0, 1)));
 
+    // Hair is drawn as soft fibres: each strand's ribbon fades across its width and at its tip
+    // (alpha to coverage, so no sorting is needed), and is hidden per pixel by the occlusion
+    // mask. fibre = (side of the ribbon -1..1, distance along it 0..1, occlusion layer):
+    // layer 0 is behind the head (hidden by neck, face and clothes), 1 is in front (hidden by
+    // neck and face, but shows over clothes), 2 is over the forehead (hidden only by neck).
+    const hairUniforms = {
+      mask: { value: new THREE.DataTexture(new Uint8Array(4), 1, 1, THREE.RGBAFormat) },
+      res: { value: new THREE.Vector2(1, 1) },
+      useMask: { value: 0 }
+    };
+    const hairVertex = `
+      attribute vec3 fibre;
+      varying vec3 vColour; varying vec3 vFibre;
+      void main() {
+        vColour = color; vFibre = fibre;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`;
+    const hairFragment = `
+      uniform sampler2D mask; uniform vec2 res; uniform float useMask;
+      varying vec3 vColour; varying vec3 vFibre;
+      void main() {
+        vec3 m = texture2D(mask, vec2(gl_FragCoord.x / res.x, 1.0 - gl_FragCoord.y / res.y)).rgb;
+        float layer = vFibre.z;
+        float hide = layer < 0.5 ? max(m.r, max(m.g, m.b)) : (layer < 1.5 ? max(m.r, m.g) : m.r);
+        float alpha = (1.0 - smoothstep(0.72, 1.0, abs(vFibre.x))) * (1.0 - smoothstep(0.86, 1.0, vFibre.y));
+        // Fade out over the mask's soft edge rather than cutting off hard.
+        if (useMask > 0.5) alpha *= 1.0 - smoothstep(0.45, 0.55, hide);
+        if (alpha < 0.02) discard;
+        gl_FragColor = vec4(vColour, alpha);
+      }`;
+    const hairMaterial = extra => new THREE.ShaderMaterial({
+      uniforms: hairUniforms, vertexShader: hairVertex, fragmentShader: hairFragment,
+      vertexColors: true, side: THREE.DoubleSide, alphaToCoverage: true, ...extra
+    });
+
     // A mesh of camera-facing ribbons, one per strand, rebuilt from points every frame.
     function ribbonMesh(strands, points, material) {
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(strands * points * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
       geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(strands * points * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      geo.setAttribute('fibre', new THREE.BufferAttribute(new Float32Array(strands * points * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
       const idx = new Uint32Array(strands * (points - 1) * 6);
       let k = 0;
       for (let s = 0; s < strands; s++) {
@@ -1035,68 +1211,64 @@
     const parseRgb = str => (str.match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(n => n / 255);
     const hexRgb = str => str.startsWith('#') ? [1, 3, 5].map(i => parseInt(str.slice(i, i + 2), 16) / 255) : parseRgb(str);
 
-    // Write one strand's ribbon: pts is [x, y, z, ...] for `points` points. Shaded for hair:
-    // brightest where the strand runs across the light, with a soft highlight, darker at the
-    // roots and towards the back of the head.
-    function writeRibbon(pos, col, s, pts, points, halfWidth, base, depthShade) {
+    // Write one strand's ribbon: pts is [x, y, z, ...] for `points` points. Shaded like hair
+    // (Kajiya–Kay): brightest where the strand runs across the light, with a sharp white
+    // highlight and a broader one tinted by the hair's own colour, darker at the roots and
+    // towards the back of the head, and a little lighter towards sun-kissed tips. tone varies
+    // each strand's shade slightly; layers gives each point's occlusion layer (see above).
+    function writeRibbon(pos, col, s, pts, points, halfWidth, base, depthShade, fib = null, layers = null, tone = 1, blunt = 0) {
       let v = s * points * 2 * 3;
       for (let j = 0; j < points; j++) {
         const k = j * 3, n = j < points - 1 ? k + 3 : k, pk = j < points - 1 ? k : k - 3;
         let tx = pts[n] - pts[pk], ty = pts[n + 1] - pts[pk + 1], tz = pts[n + 2] - pts[pk + 2];
         const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
         const sl = Math.hypot(tx, ty) || 1, u = j / (points - 1);
-        const w = halfWidth * (1 - 0.85 * u * u);
+        // Natural ends taper to a point; freshly cut (blunt) ends don't.
+        const w = halfWidth * (1 - 0.85 * u * u * (1 - blunt));
         const sx = -ty / sl * w, sy = tx / sl * w;
         const tL = tx * LIGHT.x + ty * LIGHT.y + tz * LIGHT.z, tH = tx * HALF.x + ty * HALF.y + tz * HALF.z;
         const diffuse = Math.sqrt(Math.max(0, 1 - tL * tL));
-        const spec = Math.pow(Math.sqrt(Math.max(0, 1 - tH * tH)), 60);
-        const shade = (0.35 + 0.75 * diffuse) * (0.6 + 0.4 * Math.min(1, j / 3)) * depthShade[j];
-        const r = base[0] * shade + spec * 0.22, g = base[1] * shade + spec * 0.2, b = base[2] * shade + spec * 0.18;
+        // Highlights as sin^64 and sin^16 of the angle to the half vector, by repeated squaring.
+        let h1 = Math.max(0, 1 - tH * tH); h1 *= h1; h1 *= h1; h1 *= h1; h1 *= h1; h1 *= h1; // (sin²)^32
+        const tH2 = tH + 0.3; let h2 = Math.max(0, 1 - tH2 * tH2); h2 *= h2; h2 *= h2; h2 *= h2; // (sin²)^8
+        const spec = h1, spec2 = h2;
+        const shade = (0.32 + 0.78 * diffuse) * (0.55 + 0.45 * Math.min(1, j / 3)) * depthShade[j] * tone * (1 + 0.16 * u * u);
+        const r = base[0] * shade + spec * 0.2 + spec2 * base[0] * 0.28;
+        const g = base[1] * shade + spec * 0.19 + spec2 * base[1] * 0.28;
+        const b = base[2] * shade + spec * 0.17 + spec2 * base[2] * 0.28;
         pos[v] = pts[k] + sx; pos[v + 1] = pts[k + 1] + sy; pos[v + 2] = pts[k + 2];
         pos[v + 3] = pts[k] - sx; pos[v + 4] = pts[k + 1] - sy; pos[v + 5] = pts[k + 2];
         col[v] = col[v + 3] = r; col[v + 1] = col[v + 4] = g; col[v + 2] = col[v + 5] = b;
+        if (fib) {
+          const layer = layers ? layers[j] : 1;
+          const fu = u * (1 - 0.3 * blunt);
+          fib[v] = 1; fib[v + 1] = fu; fib[v + 2] = layer;
+          fib[v + 3] = -1; fib[v + 4] = fu; fib[v + 5] = layer;
+        }
         v += 6;
       }
     }
 
-    // Each person's 3D objects: occluders (face, head, body) that only write depth, a wider,
-    // darker underlayer of hair along each guide (so the scalp never shows through), the hair
-    // strands and the beard.
+    // Each person's 3D objects: the head as an occluder that only writes depth (so hair round
+    // the back of the head is hidden behind it), a wider, darker underlayer of hair along each
+    // guide (so the scalp never shows through), the hair strands and the beard. The neck,
+    // face and clothes hide hair through the per-pixel occlusion mask instead.
     function makeGfx(t) {
       const group = new THREE.Group();
-      const faceGeo = new THREE.BufferGeometry();
-      faceGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((FACE_OVAL.length + 1) * 3), 3));
-      faceGeo.setIndex(FACE_OVAL.flatMap((_, i) => [FACE_OVAL.length, i, (i + 1) % FACE_OVAL.length]));
-      const face = new THREE.Mesh(faceGeo, occluderMaterial);
       const skull = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), occluderMaterial);
-      const bodyGeo = new THREE.BufferGeometry();
-      bodyGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SHOULDER_BINS * 2 * 3), 3));
-      const bodyIdx = [];
-      for (let c = 0; c < SHOULDER_BINS - 1; c++) bodyIdx.push(c * 2, c * 2 + 1, c * 2 + 2, c * 2 + 1, c * 2 + 3, c * 2 + 2);
-      bodyGeo.setIndex(bodyIdx);
-      const body = new THREE.Mesh(bodyGeo, occluderMaterial);
-      // The neck: from the jawline straight down, in front of all the hair, so hair never shows
-      // on the neck.
-      const neckGeo = new THREE.BufferGeometry();
-      neckGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NECK_JAW.length * 2 * 3), 3));
-      const neckIdx = [];
-      for (let i = 0; i < NECK_JAW.length - 1; i++) neckIdx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
-      neckGeo.setIndex(neckIdx);
-      const neck = new THREE.Mesh(neckGeo, occluderMaterial);
-      for (const o of [face, skull, body, neck]) { o.renderOrder = -1; o.frustumCulled = false; }
+      skull.renderOrder = -1; skull.frustumCulled = false;
       skull.matrixAutoUpdate = false;
       // Drawn just behind the strands at the same depth, so the strands always sit on top.
-      const under = ribbonMesh(GUIDES * 2, POINTS, new THREE.MeshBasicMaterial({
-        vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4
-      }));
-      const hairMesh = ribbonMesh(STRANDS, POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      const under = ribbonMesh(GUIDES * 3, POINTS, hairMaterial({ polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));
+      const hairMesh = ribbonMesh(STRANDS, POINTS, hairMaterial());
       const beardMesh = ribbonMesh(BEARD_STRANDS.length, BEARD_POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
       // The beard sits on top of the face and neck, so it's drawn last and isn't hidden by them.
       beardMesh.material.depthTest = false;
       beardMesh.renderOrder = 10;
-      group.add(face, skull, body, neck, under, hairMesh, beardMesh);
+      group.add(skull, under, hairMesh, beardMesh);
       scene.add(group);
-      t.gfx = { group, face, skull, body, neck, under, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
+      t.gfx = { group, skull, under, hairMesh, beardMesh, roots: null, last: null,
+                pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS), layers: new Float32Array(POINTS) };
     }
 
     function disposeGfx(t) {
@@ -1118,56 +1290,37 @@
       const showHair = t.hair.ready && hair.length > 0.005;
       G.group.visible = t.fade > 0.5;
 
-      // Occluders: the face as a fan of its outline (with real depth), the head, and the body
-      // from the neck and shoulders down, standing just in front of the middle of the head so
-      // hair falling behind the shoulders is hidden and locks falling in front are not.
-      const fp = G.face.geometry.attributes.position;
-      FACE_OVAL.forEach((j, i) => fp.setXYZ(i, t.face[j].x, t.face[j].y, t.face[j].z));
-      const tip = t.face[NOSE_TIP];
-      fp.setXYZ(FACE_OVAL.length, tip.x, tip.y, tip.z);
-      fp.needsUpdate = true;
-      // The neck hangs from the jaw, a little narrower than it, down past the shoulders.
-      const np = G.neck.geometry.attributes.position, chin = t.face[CHIN], down = scale3(hf.U, -4 * S);
-      NECK_JAW.forEach((j, i) => {
-        const p = t.face[j];
-        np.setXYZ(i * 2, p.x, p.y, tip.z);
-        const bx = p.x + (chin.x - p.x) * 0.2, by = p.y + (chin.y - p.y) * 0.2;
-        np.setXYZ(i * 2 + 1, bx + down.x, by + down.y, tip.z);
-      });
-      np.needsUpdate = true;
-
-      if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = G.neck.visible = false; }
+      if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = false; }
       else {
         const shape = fitShape(t, hf);
         if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) G.roots = makeRoots(shape.front);
-        G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = G.neck.visible = true;
-        ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.985, shape.b * 0.985, shape.c * 0.985);
+        G.skull.visible = G.under.visible = G.hairMesh.visible = true;
+        // A little inside the hair's surface, so it only hides hair that's really behind the head.
+        ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.9, shape.b * 0.9, shape.c * 0.9);
         const pal = hairPalette(t);
 
-        const head = t.m.head, bp = G.body.geometry.attributes.position, bz = hf.O.z;
-        for (let c = 0; c < SHOULDER_BINS; c++) {
-          const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
-          const [x, y] = toScreen(head, hx * head.size, t.hair.shoulders[c] * head.size);
-          const [x2, y2] = toScreen(head, hx * head.size, 10 * head.size);
-          bp.setXYZ(c * 2, x, y, bz); bp.setXYZ(c * 2 + 1, x2, y2, bz);
-        }
-        bp.needsUpdate = true;
-
+        const bz = hf.O.z;
         simulate(t, hf, shape, dt, time, bz);
-        const pts = G.pts, depthShade = G.shade;
+        const pts = G.pts, depthShade = G.shade, layers = G.layers;
+        const browY = toLocal(hf, t.face[FOREHEAD]).y - 0.12 * S;
+        // Shade by how far round the back of the head a point is, and pick its occlusion layer.
         const shadeAt = j => {
-          const lz = (pts[j * 3] - hf.O.x) * hf.F.x + (pts[j * 3 + 1] - hf.O.y) * hf.F.y + (pts[j * 3 + 2] - hf.O.z) * hf.F.z;
+          const dx = pts[j * 3] - hf.O.x, dy = pts[j * 3 + 1] - hf.O.y, dz = pts[j * 3 + 2] - hf.O.z;
+          const lz = dx * hf.F.x + dy * hf.F.y + dz * hf.F.z;
+          const ly = dx * hf.U.x + dy * hf.U.y + dz * hf.U.z;
+          // Only a mullet's fringe lies over the forehead; otherwise skin hides hair in front.
+          layers[j] = lz < 0 ? 0 : (hair.mullet > 0.5 && ly > browY ? 2 : 1);
           return 0.7 + 0.3 * Math.max(0, Math.min(1, (lz / shape.c + 1) / 2));
         };
 
-        // The underlayer: two wide, dark ribbons along each guide, fanned slightly apart.
-        const up = G.under.geometry.attributes.position.array, uc = G.under.geometry.attributes.color.array;
-        const dark = [pal[0], pal[1].map(v => v * 0.85)];
+        // The underlayer: three wide, dark ribbons along each guide, fanned slightly apart.
+        const up = G.under.geometry.attributes.position.array, uc = G.under.geometry.attributes.color.array, uf = G.under.geometry.attributes.fibre.array;
+        const dark = [pal[1].map(v => v * 0.9), pal[1].map(v => v * 0.8), pal[2].map(v => v * 0.75)];
         let under = 0;
         for (const g of G.roots.guides) {
           if (!g.init || g.len < S * 0.01) continue;
-          for (let r = 0; r < 2; r++) {
-            const spread = (r ? 1 : -1) * 0.012 * S;
+          for (let r = 0; r < 3; r++) {
+            const spread = (r - 1) * 0.022 * S;
             for (let j = 0; j < POINTS; j++) {
               const k = j * 3, along = j / NODES;
               const dx = g.p[Math.min(k + 3, NODES * 3)] - g.p[Math.max(0, k - 3)], dy = g.p[Math.min(k + 4, NODES * 3 + 1)] - g.p[Math.max(1, k - 2)];
@@ -1177,16 +1330,17 @@
               pts[k + 2] = g.p[k + 2];
               depthShade[j] = shadeAt(j);
             }
-            writeRibbon(up, uc, under++, pts, POINTS, Math.max(1.5, S * 0.011), dark[r], depthShade);
+            writeRibbon(up, uc, under++, pts, POINTS, Math.max(2, S * 0.018), dark[r], depthShade, uf, layers);
           }
         }
         G.under.geometry.setDrawRange(0, under * (POINTS - 1) * 6);
         G.under.geometry.attributes.position.needsUpdate = true;
         G.under.geometry.attributes.color.needsUpdate = true;
+        G.under.geometry.attributes.fibre.needsUpdate = true;
 
         // Drawn strands follow their guide, offset to their own root and fanning out a little.
-        const pos = G.hairMesh.geometry.attributes.position.array, col = G.hairMesh.geometry.attributes.color.array;
-        const halfWidth = Math.max(0.6, S * 0.0026), spreadF = 0.02 + 0.025 * Math.min(1, hair.length / 1.5);
+        const pos = G.hairMesh.geometry.attributes.position.array, col = G.hairMesh.geometry.attributes.color.array, fib = G.hairMesh.geometry.attributes.fibre.array;
+        const halfWidth = Math.max(1.1, S * 0.0045), spreadF = 0.03 + 0.045 * Math.min(1, hair.length / 1.5);
         let drawn = 0;
         const roots = G.roots;
         for (let n = 0; n < count; n++) {
@@ -1200,24 +1354,25 @@
           const ratio = Math.min(1, s.lengthF / g.lengthF);
           for (let j = 0; j < POINTS; j++) {
             const u = j * ratio, i = Math.min(NODES - 1, Math.floor(u)), f = u - i, k = i * 3;
-            const along = j / NODES, keep = 1 - 0.5 * along;
+            const along = j / NODES, keep = 1 - 0.15 * along;
             const ax = g.p[k] + (g.p[k + 3] - g.p[k]) * f, ay = g.p[k + 1] + (g.p[k + 4] - g.p[k + 1]) * f, az = g.p[k + 2] + (g.p[k + 5] - g.p[k + 2]) * f;
             const dx = g.p[k + 3] - g.p[k], dy = g.p[k + 4] - g.p[k + 1], dl = Math.hypot(dx, dy) || 1;
             // Spread and curl sideways (on screen), growing towards the tip.
             // Plus a gentle wave shared by the whole lock, stronger the longer the hair.
             const wave = Math.sin(along * 7 + g.phase) * 0.018 * Math.min(1, g.len / (1.2 * S));
-            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl + wave) * S * along;
+            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl * (s.flyaway ? 4 : 1) + wave) * S * along;
             pts[j * 3] = ax + ox * keep - dy / dl * side;
             pts[j * 3 + 1] = ay + oy * keep + dx / dl * side;
             pts[j * 3 + 2] = az + oz * keep;
             // Darker the further round the back of the head the strand is.
             depthShade[j] = shadeAt(j);
           }
-          writeRibbon(pos, col, drawn++, pts, POINTS, halfWidth, pal[s.shade], depthShade);
+          writeRibbon(pos, col, drawn++, pts, POINTS, halfWidth, pal[s.shade], depthShade, fib, layers, s.tone, hair.mullet * clamp01((s.dir.z + 0.4) / 0.25));
         }
         G.hairMesh.geometry.setDrawRange(0, drawn * (POINTS - 1) * 6);
         G.hairMesh.geometry.attributes.position.needsUpdate = true;
         G.hairMesh.geometry.attributes.color.needsUpdate = true;
+        G.hairMesh.geometry.attributes.fibre.needsUpdate = true;
       }
 
       drawBeard(t, hf, dt);
@@ -1251,7 +1406,7 @@
       if (!hair.segmenter && !hair.loading) await loadSegmenter();
       if (!hair.segmenter) return;
       hair.mullet = 0;
-      hair.target = Math.max(hair.target, 1.3);
+      hair.target = Math.max(hair.target, 1.6);
       resetHair.hidden = false;
       const now = performance.now();
       mullet.cutAt = now + 1600;     // let it grow out first, then the barber gets to work
@@ -1290,34 +1445,45 @@
       return c;
     })();
 
+    // A big flag billowing behind the person: it sweeps in, waves, and sweeps out. The person
+    // (from the segmentation) is cut out of it, so it's behind them, and the new hair is drawn
+    // on top of it.
     function drawFlag(now) {
-      const t = (now - mullet.flagFrom) / 1000, dur = 5.5;
-      const glassBox = flagCanvas.getBoundingClientRect();
-      const w = Math.round(glassBox.width), h = Math.round(glassBox.height);
+      const t = (now - mullet.flagFrom) / 1000, dur = 8;
+      const box = flagCanvas.getBoundingClientRect();
+      const w = Math.round(box.width), h = Math.round(box.height);
       if (flagCanvas.width !== w || flagCanvas.height !== h) { flagCanvas.width = w; flagCanvas.height = h; }
       flagCtx.clearRect(0, 0, w, h);
       if (t < 0 || t > dur) return;
-      const fw = Math.min(w * 0.55, 520), fh = fw * 260 / 494;
-      // Fly in from the left, across the top of the mirror, and out to the right.
-      const x0 = -fw + (w + fw) * (t / dur), y0 = h * 0.06;
-      const slice = 4, amp = fh * 0.06;
+      const fw = w * 1.05, fh = fw * 260 / 494;
+      // Sweep in from the left, hang behind them waving, then sweep out to the right.
+      const ease = v => v * v * (3 - 2 * v);
+      const inT = ease(clamp01(t / 1.2)), outT = ease(clamp01((t - (dur - 1.2)) / 1.2));
+      const x0 = (w - fw) / 2 + (inT - 1) * w * 1.2 + outT * w * 1.2, y0 = h * 0.04;
+      const slice = 5, amp = fh * 0.05;
       for (let x = 0; x < fw; x += slice) {
-        const phase = x / fw * Math.PI * 3 - t * 9;
+        const k = x / fw, phase = k * Math.PI * 2.6 - t * 5;
         // The wave grows away from the flagpole side, like cloth.
-        const k = x / fw, dy = Math.sin(phase) * amp * k;
-        flagCtx.globalAlpha = 0.92;
-        flagCtx.drawImage(flagImage, x / fw * 494, 0, slice / fw * 494 + 0.5, 260, x0 + x, y0 + dy, slice + 0.5, fh);
+        const dy = Math.sin(phase) * amp * (0.25 + k);
+        flagCtx.globalAlpha = 1;
+        flagCtx.drawImage(flagImage, k * 494, 0, slice / fw * 494 + 0.5, 260, x0 + x, y0 + dy, slice + 0.6, fh);
         // Shade the folds.
-        const shade = Math.cos(phase) * 0.22 * k;
-        flagCtx.globalAlpha = Math.abs(shade);
+        const shade = Math.cos(phase) * 0.26 * (0.3 + k);
+        flagCtx.globalAlpha = Math.min(0.5, Math.abs(shade));
         flagCtx.fillStyle = shade > 0 ? '#ffffff' : '#000000';
-        flagCtx.fillRect(x0 + x, y0 + dy, slice + 0.5, fh);
+        flagCtx.fillRect(x0 + x, y0 + dy, slice + 0.6, fh);
       }
-      // The pole.
       flagCtx.globalAlpha = 1;
-      flagCtx.fillStyle = '#c9a25a';
-      flagCtx.fillRect(x0 - 6, y0 - 8, 6, fh * 1.6);
-      flagCtx.beginPath(); flagCtx.arc(x0 - 3, y0 - 10, 7, 0, Math.PI * 2); flagCtx.fill();
+      // Cut the person out, mapped the way the video fills the mirror (covered and mirrored).
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (occlusion.person && vw && vh) {
+        const sc = Math.max(w / vw, h / vh), dw = vw * sc, dh = vh * sc;
+        flagCtx.save();
+        flagCtx.globalCompositeOperation = 'destination-out';
+        flagCtx.translate(w, 0); flagCtx.scale(-1, 1);
+        flagCtx.drawImage(occlusion.person, (w - dw) / 2, (h - dh) / 2, dw, dh);
+        flagCtx.restore();
+      }
     }
 
     // Hillbilly breakdown, all synthesised: a banjo in open G picking fast forward rolls, a
@@ -1714,6 +1880,7 @@
     function renderHair(w, h, now, dt) {
       const cw = Math.round(w * HAIR_SCALE), ch = Math.round(h * HAIR_SCALE);
       if (hairCanvas.width !== cw || hairCanvas.height !== ch) renderer.setSize(cw, ch, false);
+      hairUniforms.res.value.set(cw, ch);
       if (camera.right !== w || camera.bottom !== h) {
         camera.right = w; camera.bottom = h;
         camera.updateProjectionMatrix();
@@ -1752,7 +1919,22 @@
         // Trace hair quickly until everyone's outline is known, then only now and then.
         const settled = hair.analyses > 4 && tracks.every(t => t.hair.ready);
         const every = settled ? (MOBILE ? 45 : 20) : 4;
-        if (fresh && hair.segmenter && hair.target > 0 && tracks.length && hair.frame++ % every === 0) analyseHair(w, h);
+        // Segment new frames while there's hair, so the occlusion mask matches what's on
+        // screen: straight away whenever anyone moves, and at least every few frames when
+        // everyone's still (then the last mask is still exact).
+        if (fresh && hair.segmenter && (hair.target > 0 || hair.length > 0) && tracks.length) {
+          const moved = tracks.some(t => {
+            const h0 = t.segAt, hd = t.m.head;
+            return !h0 || Math.hypot(hd.cx - h0.cx, hd.cy - h0.cy) > hd.size * 0.006 || Math.abs(hd.size - h0.size) > hd.size * 0.006;
+          });
+          const analyse = hair.frame % every === 0;
+          if (moved || analyse || !settled || hair.sinceSeg >= (MOBILE ? 4 : 3)) {
+            segmentFrame(w, h, analyse);
+            hair.sinceSeg = 0;
+            for (const t of tracks) t.segAt = { ...t.m.head };
+          } else hair.sinceSeg++;
+        }
+        if (fresh) hair.frame++;
 
         const cycle = now / 1000 * Math.PI * 2 * Number(speed.value);
         // Grows up to (1 + amount) and shrinks down to 1 / (1 + amount).
