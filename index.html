@@ -28,7 +28,7 @@
   <div id="face" hidden>Looking for your face…</div>
   <div id="gazeReadout" hidden></div>
   <div id="controls">
-    <label><input id="gazeOn" type="checkbox" checked> Eye contact</label>
+    <label><input id="gazeOn" type="checkbox"> Eye contact</label>
     <label><input id="gazeDebug" type="checkbox"> Show gaze</label>
     <span>Pulse:</span>
     <label><input id="pulseEyes" type="checkbox"> Eyes</label>
@@ -90,17 +90,17 @@
     //   centre - middle of the eye opening
     //   axis   - unit vector from one eye corner to the other
     //   size   - semi-axes of the ellipse covering the eye opening
-    //   iris   - where the iris should appear (the corrected position)
+    //   iris   - where the iris is
     //   irisR  - iris radius
-    //   shift  - from the corrected position back to where the iris really is
+    //   lift   - how far to move the iris up
     // Pulse regions (both eyes, nose, mouth) each have a centre and a radius; radius 0 is off.
     const fragSrc = `
       precision highp float;
       varying vec2 vUv;
       uniform sampler2D tex;
       uniform vec2 res;
-      uniform vec2 centre[2], axis[2], size[2], shift[2], iris[2];
-      uniform float irisR[2];
+      uniform vec2 centre[2], axis[2], size[2], iris[2];
+      uniform float irisR[2], lift[2];
       uniform vec2 pulseCentre[4];
       uniform float pulseRadius[4];
       uniform float scale;     // pulse: >1 enlarges, <1 shrinks
@@ -113,37 +113,39 @@
         return c + d * mix(1.0 / scale, 1.0, smoothstep(0.0, 1.0, dist));
       }
 
-      // Redraw the iris and pupil higher so they look into the camera. The iris is copied to
-      // its new spot, the gap it leaves is filled with the white of the eye from beside it on the
-      // same row, and everything is clipped to the eye opening so it tucks under the top lid.
-      // Lids, corners and skin are never touched.
-      vec4 eyeContact(vec2 p, vec4 col, vec2 c, vec2 u, vec2 ab, vec2 t, float ir, vec2 s) {
-        if (ab.x <= 0.0 || ab.y <= 0.0 || ir <= 0.0 || length(s) < 0.05) return col;
+      // Move the iris up so it looks into the camera, using only pixels already inside the eye
+      // opening. In each column across the eye the lids stay pinned; the white above the iris
+      // is squeezed and the white below is stretched, so the iris slides up. Nothing is drawn
+      // on top and nothing from outside the eye is pulled in. The mapping is kept monotonic so
+      // it can never fold or duplicate anything.
+      vec2 eyeContact(vec2 p, vec2 c, vec2 u, vec2 ab, vec2 o, float ir, float amount) {
+        if (amount <= 0.01 || ab.x <= 0.0 || ab.y <= 0.0 || ir <= 0.0) return p;
         vec2 v = vec2(-u.y, u.x);
         vec2 d = p - c;
-        float inside = 1.0 - smoothstep(0.9, 1.0, length(vec2(dot(d, u) / ab.x, dot(d, v) / ab.y)));
-        if (inside <= 0.0) return col;
+        float x = dot(d, u), y = dot(d, v);
+        float ex = x / ab.x;
+        if (abs(ex) >= 1.0) return p;
+        float halfH = ab.y * sqrt(1.0 - ex * ex);
+        float top = -halfH, bottom = halfH;
+        if (y <= top || y >= bottom) return p;
 
-        vec2 o = t + s; // where the iris really is
-        vec2 fromO = p - o;
-        float ox = dot(fromO, u), oy = dot(fromO, v);
-        float edge = 1.2 * ir;
-        float reach = sqrt(max(edge * edge - oy * oy, 0.0));
-        vec2 white = p + u * ((ox >= 0.0 ? reach : -reach) - ox);
-        float vacated = 1.0 - smoothstep(0.95, 1.2, length(fromO) / ir);
-        vec4 filled = mix(col, texture2D(tex, white / res), vacated);
+        vec2 od = o - c;
+        float ix = dot(od, u), iy = dot(od, v);
+        // Full lift in the iris's columns, easing to none towards the corners.
+        float L = amount * (1.0 - smoothstep(1.0, 2.2, abs(x - ix) / ir));
+        L = min(L, min((bottom - iy) / 0.6, 0.8 * (iy - top)));
+        if (L <= 0.0) return p;
 
-        float irisW = 1.0 - smoothstep(0.9, 1.1, length(p - t) / ir);
-        vec4 moved = mix(filled, texture2D(tex, (p + s) / res), irisW);
-        return mix(col, moved, inside);
+        float ty = iy - L; // where the iris centre ends up in this column
+        float f = y < ty ? smoothstep(top, ty, y) : 1.0 - smoothstep(ty, bottom, y);
+        return p + v * (L * f);
       }
 
       void main() {
         vec2 p = vUv * res;
         for (int i = 0; i < 4; i++) p = pulse(p, pulseCentre[i], pulseRadius[i]);
-        vec4 col = texture2D(tex, p / res);
-        for (int i = 0; i < 2; i++) col = eyeContact(p, col, centre[i], axis[i], size[i], iris[i], irisR[i], shift[i]);
-        gl_FragColor = col;
+        for (int i = 0; i < 2; i++) p = eyeContact(p, centre[i], axis[i], size[i], iris[i], irisR[i], lift[i]);
+        gl_FragColor = texture2D(tex, p / res);
       }`;
 
     function compile(type, src) {
@@ -174,7 +176,7 @@
 
     const u = name => gl.getUniformLocation(prog, name);
     const uRes = u('res'), uScale = u('scale'), uCentre = u('centre'), uAxis = u('axis'),
-          uSize = u('size'), uShift = u('shift'), uIris = u('iris'), uIrisR = u('irisR'), uPulseCentre = u('pulseCentre'), uPulseRadius = u('pulseRadius');
+          uSize = u('size'), uLift = u('lift'), uIris = u('iris'), uIrisR = u('irisR'), uPulseCentre = u('pulseCentre'), uPulseRadius = u('pulseRadius');
 
     // ---------- Face tracking ----------
     let landmarker = null;
@@ -293,13 +295,13 @@
         // Grows up to (1 + amount) and shrinks down to 1 / (1 + amount).
         const scale = Math.pow(1 + Number(amount.value), wave);
         // Lift each iris by roughly as far as the eyes have dropped, capped so it still looks
-        // natural: at most 0.8 of an iris radius, and no more than half the eye opening's height.
+        // natural: at most 0.6 of an iris radius (the shader also keeps it inside the lids).
         // MediaPipe reports ~0.2 "down" even when looking straight at the lens, so ignore that much.
         const down = Math.max(0, gaze.down - 0.15);
         const lift = eyes.map(e => {
           if (!gazeOn.checked) return 0;
           const blink = clamp((e.open - 0.12) / 0.08, 0, 1);
-          return Math.min(down * 2.5 * e.ir, 0.8 * e.ir, e.b) * blink * e.fade * gaze.fade;
+          return Math.min(down * 2.5 * e.ir, 0.6 * e.ir) * blink * e.fade * gaze.fade;
         });
 
         gazeReadout.hidden = !gazeDebug.checked;
@@ -317,9 +319,8 @@
         gl.uniform2fv(uCentre, f(e => [e.cx, e.cy]));
         gl.uniform2fv(uAxis, f(e => [e.ux, e.uy]));
         gl.uniform2fv(uSize, f(e => [e.a, e.b]));
-        // The eye's "down" direction is perpendicular to the corner-to-corner axis.
-        gl.uniform2fv(uShift, f((e, i) => [-e.uy * lift[i], e.ux * lift[i]]));
-        gl.uniform2fv(uIris, f((e, i) => [e.ix + e.uy * lift[i], e.iy - e.ux * lift[i]]));
+        gl.uniform1fv(uLift, new Float32Array(lift));
+        gl.uniform2fv(uIris, f(e => [e.ix, e.iy]));
         gl.uniform1fv(uIrisR, f(e => [e.ir]));
         const eyeR = e => pulseEyes.checked ? e.r * e.fade : 0;
         gl.uniform2fv(uPulseCentre, new Float32Array([eyes[0].cx, eyes[0].cy, eyes[1].cx, eyes[1].cy, nose.x, nose.y, mouth.x, mouth.y]));
