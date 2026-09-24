@@ -1320,21 +1320,27 @@
       flagCtx.beginPath(); flagCtx.arc(x0 - 3, y0 - 10, 7, 0, Math.PI * 2); flagCtx.fill();
     }
 
-    // Banjo: each note is a plucked string (Karplus–Strong synthesis), played in fast forward
-    // rolls over G, C and D with a bouncing bass, bluegrass style.
-    function pluck(ctx, freq, bright) {
-      const sr = ctx.sampleRate, len = Math.floor(sr * 0.9), buf = ctx.createBuffer(1, len, sr);
+    // Hillbilly breakdown, all synthesised: a banjo in open G picking fast forward rolls, a
+    // jug bass going boom-chick, a washboard scratching the off-beats, and a "shave and a
+    // haircut, two bits" ending.
+    //
+    // Banjo notes are plucked strings (Karplus–Strong): a burst of noise, plucked near the
+    // bridge (which gives the nasal twang), circulating round a delay line one period long and
+    // losing a little each time. Banjos ring bright and die fast, so the loss is small but an
+    // envelope cuts them short, and a "drum head" of resonant filters adds the honk.
+    function pluck(ctx, freq) {
+      const sr = ctx.sampleRate, len = Math.floor(sr * 0.7), buf = ctx.createBuffer(1, len, sr);
       const out = buf.getChannelData(0), N = Math.max(2, Math.round(sr / freq));
-      const line = new Float32Array(N);
-      for (let i = 0; i < N; i++) line[i] = Math.random() * 2 - 1;
+      const line = new Float32Array(N), pickAt = Math.max(1, Math.round(N * 0.13));
+      const noise = Float32Array.from({ length: N }, () => Math.random() * 2 - 1);
+      for (let i = 0; i < N; i++) line[i] = noise[i] - noise[(i + pickAt) % N] * 0.9;
       let idx = 0, prev = 0;
       for (let i = 0; i < len; i++) {
         const v = line[idx];
-        // Averaging neighbours damps the string; a banjo's bright, quick decay.
-        const next = (v * (0.5 + bright) + prev * (0.5 - bright)) * 0.994;
+        line[idx] = (v * 0.9 + prev * 0.1) * 0.998;
         prev = v;
-        line[idx] = next;
-        out[i] = v;
+        // Quick attack, fast decay: the banjo's short, punchy ring.
+        out[i] = v * Math.exp(-i / (sr * 0.22)) * (i < 40 ? i / 40 : 1);
         idx = (idx + 1) % N;
       }
       return buf;
@@ -1348,45 +1354,94 @@
         const ctx = new AC();
         mullet.audio = ctx;
         const master = ctx.createGain();
-        master.gain.value = 0.55;
-        // A banjo's twang: cut the lows, lift the upper mids.
-        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 160;
-        const peak = ctx.createBiquadFilter(); peak.type = 'peaking'; peak.frequency.value = 2400; peak.gain.value = 6;
-        master.connect(hp).connect(peak).connect(ctx.destination);
+        master.gain.value = 0.5;
+        const glue = ctx.createDynamicsCompressor();
+        glue.threshold.value = -16; glue.ratio.value = 4;
+        master.connect(glue).connect(ctx.destination);
+
+        // The banjo's body: a drum head that honks in the upper mids, a bit of grit, no mud.
+        const banjo = ctx.createGain();
+        const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 180;
+        const head = ctx.createBiquadFilter(); head.type = 'peaking'; head.frequency.value = 1700; head.Q.value = 1.8; head.gain.value = 9;
+        const ring = ctx.createBiquadFilter(); ring.type = 'peaking'; ring.frequency.value = 3600; ring.Q.value = 2.5; ring.gain.value = 5;
+        const grit = ctx.createWaveShaper();
+        grit.curve = Float32Array.from({ length: 1024 }, (_, i) => { const x = i / 511.5 - 1; return Math.tanh(x * 2.2); });
+        banjo.connect(hp).connect(head).connect(ring).connect(grit).connect(master);
+
         const cache = new Map();
-        const note = (f, at, gain, bright = 0.42) => {
-          const key = f + ':' + bright;
-          if (!cache.has(key)) cache.set(key, pluck(ctx, f, bright));
+        // slide: start a little flat and bend up into the note, the way pickers slide in.
+        const note = (f, at, gain, slide = false) => {
+          if (!cache.has(f)) cache.set(f, pluck(ctx, f));
           const src = ctx.createBufferSource(), g = ctx.createGain();
-          src.buffer = cache.get(key); g.gain.value = gain;
-          src.connect(g).connect(master);
+          src.buffer = cache.get(f); g.gain.value = gain;
+          if (slide) {
+            src.playbackRate.setValueAtTime(0.89, at);
+            src.playbackRate.linearRampToValueAtTime(1, at + 0.07);
+          }
+          src.connect(g).connect(banjo);
           src.start(at);
         };
-        const G3 = 196, B3 = 246.94, D4 = 293.66, G4 = 392, C4 = 261.63, E4 = 329.63, Fs4 = 369.99, A4 = 440, B4 = 493.88;
-        const chords = {
-          G: { roll: [G3, B3, D4, B4], bass: [98, 146.83] },
-          C: { roll: [C4, E4, G4, E4], bass: [130.81, 196] },
-          D: { roll: [D4, Fs4, A4, Fs4], bass: [146.83, 220] }
+        // Jug bass: a low tone that swoops down into its note ("whoomp").
+        const jug = (f, at, gain = 0.5) => {
+          const o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+          o.type = 'triangle'; lp.type = 'lowpass'; lp.frequency.value = 500;
+          o.frequency.setValueAtTime(f * 1.35, at);
+          o.frequency.exponentialRampToValueAtTime(f, at + 0.05);
+          g.gain.setValueAtTime(0, at);
+          g.gain.linearRampToValueAtTime(gain, at + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.001, at + 0.28);
+          o.connect(lp).connect(g).connect(master);
+          o.start(at); o.stop(at + 0.3);
         };
-        const bars = ['G', 'G', 'C', 'G', 'D', 'D', 'G', 'G', 'G', 'C', 'G', 'D', 'G', 'D', 'G', 'G'];
-        const eighth = 60 / 172 / 2, start = ctx.currentTime + 0.05;
-        // Forward roll: index, middle and thumb (the high G drone string) around the chord.
-        const roll = [0, 1, 4, 2, 3, 4, 1, 2];
+        // Washboard: a short, bright scratch of noise.
+        const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+        noiseBuf.getChannelData(0).forEach((_, i, d) => { d[i] = (Math.random() * 2 - 1) * (1 - i / d.length); });
+        const scratch = (at, gain = 0.25) => {
+          const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain();
+          src.buffer = noiseBuf; bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 1.2; g.gain.value = gain;
+          src.connect(bp).connect(g).connect(master);
+          src.start(at);
+        };
+
+        // Banjo strings in open G (5th string is the high drone), and fretted notes for chords.
+        const n = { D3: 146.83, E3: 164.81, G3: 196, A3: 220, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, Fs4: 369.99, G4: 392, A4: 440, B4: 493.88 };
+        // For each chord: the thumb string, index string and melody on the 1st string, bar by bar.
+        const shapes = {
+          G: { thumb: n.G3, index: n.B3, melody: [n.D4, n.D4, n.E4, n.D4] },
+          C: { thumb: n.G3, index: n.C4, melody: [n.E4, n.E4, n.G4, n.E4] },
+          D: { thumb: n.A3, index: n.D4, melody: [n.Fs4, n.Fs4, n.A4, n.Fs4] }
+        };
+        const bass = { G: [98, 146.83], C: [130.81, 196], D: [146.83, 220] };
+        const bars = ['G', 'G', 'C', 'G', 'G', 'G', 'D', 'D', 'G', 'G', 'C', 'G', 'D', 'D', 'G', 'G'];
+        const eighth = 60 / 232 / 2, start = ctx.currentTime + 0.05;
+
         bars.forEach((name, bar) => {
-          const c = chords[name];
-          roll.forEach((r, i) => {
-            const at = start + (bar * 8 + i) * eighth;
-            note(r === 4 ? G4 : c.roll[r], at, r === 4 ? 0.28 : 0.4);
+          const c = shapes[name], t0 = start + bar * 8 * eighth;
+          const m = c.melody[bar % 4];
+          // A forward roll: thumb, index, middle, drone, index, middle, drone, middle.
+          const roll = [c.thumb, c.index, m, n.G4, c.index, m, n.G4, m];
+          roll.forEach((f, i) => {
+            const accent = i === 0 || i === 3 ? 0.46 : 0.34;
+            note(f, t0 + i * eighth, f === n.G4 ? 0.26 : accent, i === 0 && name !== bars[bar - 1]);
           });
-          // Boom-chick bass on the beats: root, then fifth.
-          for (let beat = 0; beat < 4; beat++) note(c.bass[beat % 2], start + (bar * 8 + beat * 2) * eighth, 0.32, 0.3);
+          for (let beat = 0; beat < 4; beat++) {
+            jug(bass[name][beat % 2], t0 + beat * 2 * eighth);
+            scratch(t0 + (beat * 2 + 1) * eighth, beat % 2 ? 0.3 : 0.22);
+          }
         });
-        // Finish on a big G chord, then fade out.
-        const end = start + bars.length * 8 * eighth;
-        [G3, B3, D4, G4, B4].forEach((f, i) => note(f, end + i * 0.03, 0.4));
-        master.gain.setValueAtTime(0.55, end + 0.4);
-        master.gain.linearRampToValueAtTime(0, end + 1.6);
-        setTimeout(() => { if (mullet.audio === ctx) { ctx.close(); mullet.audio = null; } }, (end - ctx.currentTime + 2) * 1000);
+
+        // "Shave and a haircut… two bits!" in G, played on banjo with the band.
+        const end = start + bars.length * 8 * eighth, q = eighth * 2;
+        const lick = [[n.G4, 0], [n.D4, 2], [n.D4, 3], [n.E4, 4], [n.D4, 6], [n.Fs4, 10], [n.G4, 12]];
+        lick.forEach(([f, at], i) => {
+          note(f, end + at * eighth, 0.5, i === 0);
+          note(f / 2, end + at * eighth, 0.25);
+          if (i >= 5) { jug(i === 5 ? 146.83 : 98, end + at * eighth, 0.6); scratch(end + at * eighth, 0.35); }
+        });
+        const stopAt = end + 12 * eighth + q * 2;
+        master.gain.setValueAtTime(0.5, stopAt - 0.3);
+        master.gain.linearRampToValueAtTime(0, stopAt + 0.4);
+        setTimeout(() => { if (mullet.audio === ctx) { ctx.close(); mullet.audio = null; } }, (stopAt - ctx.currentTime + 1) * 1000);
       } catch {
         // No sound available: the mullet still happens.
       }
