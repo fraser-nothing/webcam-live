@@ -877,7 +877,10 @@
       const { a, b, c } = shape;
       const p = toWorld(hf, d.x * a * lift, d.y * b * lift, d.z * c * lift);
       const n = norm(v3(d.x / a, d.y / b, d.z / c));
-      const v = v3(side * 0.8 * (1 - Math.max(0, -d.z) * 0.7), -0.75, -0.35);
+      let v = v3(side * 0.8 * (1 - Math.max(0, -d.z) * 0.7), -0.75, -0.35);
+      // A mullet's top is combed forward, down over the forehead into the fringe.
+      const forward = hair.mullet * clamp01((d.z + 0.1) / 0.4);
+      if (forward > 0) v = add3(scale3(v, 1 - forward), scale3(v3(d.x * 0.3, -0.7, 0.7), forward));
       const tl = norm(sub(v, scale3(n, dot(v, n))));
       const tw = norm(add3(scale3(hf.R, tl.x), scale3(hf.U, tl.y), scale3(hf.F, tl.z)));
       return { p, t: tw };
@@ -892,7 +895,7 @@
       const damping = Math.exp(-dt * 3), g = GRAVITY * S * dt * dt;
       const segs = new Float32Array(NODES);
       // Guides rest just outside the head, standing off it more as the hair gets longer.
-      const m = 1.015 + 0.035 * Math.min(1, hair.length / 1.5);
+      const m = 1.015 + 0.035 * Math.min(1, hair.length / 1.5) + 0.03 * hair.mullet;
       // Neck and shoulders: a slab through the body; hair landing on it falls in front of or
       // behind the shoulders instead of through them.
       const head = t.m.head, shoulders = t.hair.shoulders, slab = 0.3 * S;
@@ -973,7 +976,7 @@
               p[k] += (hf.R.x * lx + hf.U.x * ly + hf.F.x * lz) * f;
               p[k + 1] += (hf.R.y * lx + hf.U.y * ly + hf.F.y * lz) * f;
               p[k + 2] += (hf.R.z * lx + hf.U.z * ly + hf.F.z * lz) * f;
-            } else if (lz > 0.05 * S && ly < browY + 0.05 * S && ly > chinY - 0.05 * S && Math.abs(lx) < faceHalf) {
+            } else if (lz > 0.05 * S && ly < browY + (hair.mullet > 0 ? 0.03 : 0.05) * S && ly > chinY - 0.05 * S && Math.abs(lx) < faceHalf) {
               const out = (Math.abs(lx) > 0.05 * S ? Math.sign(lx) : G.side) * faceHalf - lx;
               p[k] += hf.R.x * out; p[k + 1] += hf.R.y * out; p[k + 2] += hf.R.z * out;
             }
@@ -1201,7 +1204,9 @@
             const ax = g.p[k] + (g.p[k + 3] - g.p[k]) * f, ay = g.p[k + 1] + (g.p[k + 4] - g.p[k + 1]) * f, az = g.p[k + 2] + (g.p[k + 5] - g.p[k + 2]) * f;
             const dx = g.p[k + 3] - g.p[k], dy = g.p[k + 4] - g.p[k + 1], dl = Math.hypot(dx, dy) || 1;
             // Spread and curl sideways (on screen), growing towards the tip.
-            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl) * S * along;
+            // Plus a gentle wave shared by the whole lock, stronger the longer the hair.
+            const wave = Math.sin(along * 7 + g.phase) * 0.018 * Math.min(1, g.len / (1.2 * S));
+            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl + wave) * S * along;
             pts[j * 3] = ax + ox * keep - dy / dl * side;
             pts[j * 3 + 1] = ay + oy * keep + dx / dl * side;
             pts[j * 3 + 2] = az + oz * keep;
@@ -1219,26 +1224,34 @@
     }
 
     // ---------- Mullet Me ----------
-    // Grows the hair out long, then cuts the top, front and sides short and leaves the back
-    // long: business in the front, party in the back. A US flag flies across the mirror and a
-    // fast bluegrass banjo tune plays (synthesised here, so no audio files are needed).
-    const MULLET_SHORT = 0.13;       // face heights left on top, front and sides
+    // Grows the hair out long, then cuts it into a classic mullet: a full top combed forward
+    // into a blunt fringe just above the brows, short sides around the ears, and the back left
+    // long and flowing: business in the front, party in the back. A US flag flies across the
+    // mirror and a fast bluegrass banjo tune plays (synthesised here, so no audio files are
+    // needed).
+    const MULLET_TOP = 0.24;         // face heights: top and fringe, reaching just above the brows
+    const MULLET_SIDES = 0.1;        // face heights: short around the ears
     const mullet = { cutAt: Infinity, flagFrom: -Infinity, audio: null };
     hair.mullet = 0;                 // 0 = normal, 1 = fully cut into a mullet
 
     // How long a strand from this direction on the head should be for the current style.
+    const clamp01 = v => Math.max(0, Math.min(1, v));
+
     function styledLength(d, full, S) {
       if (hair.mullet <= 0) return full;
-      // Everything but the back of the head is cut short.
-      const front = Math.max(0, Math.min(1, (d.z + 0.35) / 0.3));
-      return full + (Math.min(full, MULLET_SHORT * S) - full) * hair.mullet * front;
+      // The back of the head stays long; the rest is cut.
+      const cut = clamp01((d.z + 0.4) / 0.25);
+      // Low on the sides, around the ears, it's cut shorter than on top.
+      const sides = clamp01((Math.abs(d.x) - 0.5) / 0.3) * clamp01((0.55 - d.y) / 0.3);
+      const short = (MULLET_TOP + (MULLET_SIDES - MULLET_TOP) * sides) * S;
+      return full + (Math.min(full, short) - full) * hair.mullet * cut;
     }
 
     $('mulletMe').addEventListener('click', async () => {
       if (!hair.segmenter && !hair.loading) await loadSegmenter();
       if (!hair.segmenter) return;
       hair.mullet = 0;
-      hair.target = Math.max(hair.target, 1.6);
+      hair.target = Math.max(hair.target, 1.3);
       resetHair.hidden = false;
       const now = performance.now();
       mullet.cutAt = now + 1600;     // let it grow out first, then the barber gets to work
