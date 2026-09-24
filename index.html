@@ -95,7 +95,6 @@
     }
     .big:hover { filter: brightness(1.06); }
     .big:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--brass-lo), 0 4px 10px rgba(0,0,0,.4); }
-    .big[aria-pressed="true"] { background: linear-gradient(180deg, #e8574f, var(--red)); color: #fff; box-shadow: 0 6px 0 #7d1d19, 0 10px 22px rgba(0,0,0,.45); }
     .big svg { width: 22px; height: 22px; }
     .small { padding: 10px 18px; border-radius: 999px; background: rgba(243, 234, 216, .08); border: 1px solid rgba(243, 234, 216, .2); font-weight: 500; }
     .small:hover { background: rgba(243, 234, 216, .14); }
@@ -154,11 +153,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>
       <span>Grow hair</span>
     </button>
-    <button id="growBeard" class="big" type="button" aria-pressed="false">
+    <button id="growBeard" class="big" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9c0 7 3.5 11 8 11s8-4 8-11"/><path d="M8 13c1.3-1 2.6-1.5 4-1.5s2.7.5 4 1.5"/></svg>
       <span>Grow beard</span>
     </button>
     <button id="resetHair" class="small" type="button" hidden>Cut hair</button>
+    <button id="shaveBeard" class="small" type="button" hidden>Shave</button>
     <div class="extras">
       <button id="extrasToggle" class="small" type="button" aria-expanded="false" aria-controls="extras">Extras</button>
       <div id="extras" class="extras-panel" hidden>
@@ -193,7 +193,7 @@
     const speed = $('speed'), amount = $('amount');
     const pulseEyes = $('pulseEyes'), pulseNose = $('pulseNose'), pulseMouth = $('pulseMouth');
     const browWobble = $('browWobble'), waveSpeed = $('waveSpeed'), growHair = $('growHair'), resetHair = $('resetHair');
-    const growBeard = $('growBeard');
+    const growBeard = $('growBeard'), shaveBeard = $('shaveBeard');
 
     // Phones get a lighter load: fewer people, fewer hair strands and a smaller camera feed.
     const MOBILE = matchMedia('(max-width: 700px), (pointer: coarse)').matches;
@@ -751,10 +751,12 @@
 
     // Is this direction on the unit sphere covered in hair? Above the hairline at the front,
     // above the ears at the sides, down to the nape at the back.
-    function inHair(d, front) {
+    // fuzz roughens the line so it isn't a clean edge.
+    function inHair(d, front, fuzz = 0) {
       const sides = 0.2, back = -0.45;
-      // Stays high across the forehead and temples, dropping only near the ears.
-      const line = d.z >= 0 ? sides + (front - sides) * Math.min(1, d.z / 0.45) : sides + (back - sides) * -d.z;
+      // Recedes a little at the temples, stays high across them, and drops only near the ears.
+      const frontLine = front + 0.12 * Math.abs(d.x) + fuzz;
+      const line = d.z >= 0 ? sides + (frontLine - sides) * Math.min(1, d.z / 0.45) : sides + (back - sides) * -d.z + fuzz;
       return d.y >= line;
     }
 
@@ -763,11 +765,11 @@
     function makeRoots(front) {
       const rnd = random(4321);
       const cand = [];
-      const N = 6000, golden = Math.PI * (3 - Math.sqrt(5));
+      const N = 8000, golden = Math.PI * (3 - Math.sqrt(5));
       for (let i = 0; i < N; i++) {
         const y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), th = golden * i;
         const d = v3(Math.cos(th) * r, y, Math.sin(th) * r);
-        if (inHair(d, front)) cand.push(d);
+        if (inHair(d, front, (rnd() - 0.5) * 0.08)) cand.push(d);
       }
       const guides = [];
       const stride = cand.length / GUIDES;
@@ -788,7 +790,7 @@
         // A root near its guide's, jittered over the scalp.
         const d = norm(v3(g.dir.x + (rnd() - 0.5) * 0.12, g.dir.y + (rnd() - 0.5) * 0.12, g.dir.z + (rnd() - 0.5) * 0.12));
         strands.push({
-          gi, dir: inHair(d, front) ? d : g.dir,
+          gi, dir: inHair(d, front, (rnd() - 0.5) * 0.08) ? d : g.dir,
           lengthF: g.lengthF * (0.8 + rnd() * 0.25),
           shade: Math.min(5, Math.floor(Math.pow(rnd(), 1.3) * 6)),
           curl: (0.004 + rnd() * 0.012), curlFreq: 4 + rnd() * 8, phase: rnd() * Math.PI * 2,
@@ -811,14 +813,18 @@
     }
 
     // Step one person's guide strands.
-    function simulate(t, hf, shape, dt, time) {
+    function simulate(t, hf, shape, dt, time, bodyZ) {
       const S = hf.S, total = hair.length * S;
       const { a, b, c } = shape;
       const jumped = !t.gfx.last || Math.hypot(hf.O.x - t.gfx.last.x, hf.O.y - t.gfx.last.y) > S * 0.5;
       t.gfx.last = hf.O;
       const damping = Math.exp(-dt * 3), g = GRAVITY * S * dt * dt;
       const segs = new Float32Array(NODES);
-      const m = 1.015; // guides rest just outside the head
+      // Guides rest just outside the head, standing off it more as the hair gets longer.
+      const m = 1.015 + 0.035 * Math.min(1, hair.length / 1.5);
+      // Neck and shoulders: a slab through the body; hair landing on it falls in front of or
+      // behind the shoulders instead of through them.
+      const head = t.m.head, shoulders = t.hair.shoulders, slab = 0.3 * S;
       // In front of the face, from the brow to the chin, hair can't hang: it's pushed out to the
       // sides, so it parts and falls either side of the face, framing it.
       const browY = toLocal(hf, t.face[FOREHEAD]).y, chinY = toLocal(hf, t.face[CHIN]).y;
@@ -826,6 +832,8 @@
 
       for (const G of t.gfx.roots.guides) {
         const len = total * G.lengthF;
+        // While growing, new length is added without any speed, so strands don't whip about.
+        const growing = G.len !== undefined && len > G.len + 1e-6;
         G.len = len;
         if (len < S * 0.01) { G.init = false; continue; }
         for (let i = 0; i < NODES; i++) segs[i] = len * SEG_WEIGHTS[i];
@@ -860,6 +868,16 @@
             const k = i * 3, j = k - 3;
             const ex = p[k] - p[j], ey = p[k + 1] - p[j + 1], ez = p[k + 2] - p[j + 2];
             const d = Math.hypot(ex, ey, ez) || 1, diff = (d - segs[i - 1]) / d;
+            if (growing && diff < 0) {
+              // New length hangs downwards (where gravity would take it) rather than pushing the
+              // strand out along its current direction, and adds no speed.
+              const need = segs[i - 1] - d;
+              let gx = ex / d * 0.3, gy = ey / d * 0.3 + 0.7, gz = ez / d * 0.3;
+              const gl = Math.hypot(gx, gy, gz) || 1; gx *= need / gl; gy *= need / gl; gz *= need / gl;
+              p[k] += gx; p[k + 1] += gy; p[k + 2] += gz;
+              q[k] += gx; q[k + 1] += gy; q[k + 2] += gz;
+              continue;
+            }
             if (i === 1) { p[k] -= ex * diff; p[k + 1] -= ey * diff; p[k + 2] -= ez * diff; }
             else {
               p[k] -= ex * diff * 0.5; p[k + 1] -= ey * diff * 0.5; p[k + 2] -= ez * diff * 0.5;
@@ -888,8 +906,23 @@
               const out = (Math.abs(lx) > 0.05 * S ? Math.sign(lx) : G.side) * faceHalf - lx;
               p[k] += hf.R.x * out; p[k + 1] += hf.R.y * out; p[k + 2] += hf.R.z * out;
             }
+            // Below their traced shoulder line and inside the body: out to its front or back.
+            if (Math.abs(p[k + 2] - bodyZ) < slab) {
+              const sx = p[k] - head.cx, sy = p[k + 1] - head.cy;
+              const across = (sx * -head.uy + sy * head.ux) / head.size, below = -(sx * head.ux + sy * head.uy) / head.size;
+              const col = (across + 2) / 4 * (SHOULDER_BINS - 1);
+              if (col >= 0 && col <= SHOULDER_BINS - 1) {
+                const c0 = Math.min(SHOULDER_BINS - 2, Math.floor(col)), cf = col - c0;
+                if (below > shoulders[c0] * (1 - cf) + shoulders[c0 + 1] * cf) {
+                  p[k + 2] = bodyZ + (p[k + 2] >= bodyZ ? slab : -slab);
+                }
+              }
+            }
           }
         }
+        // While growing, damp the hair hard so the corrections above settle it into place
+        // instead of flinging it.
+        if (growing) for (let k = 3; k < POINTS * 3; k++) q[k] = p[k] - (p[k] - q[k]) * 0.3;
       }
     }
 
@@ -952,22 +985,9 @@
       }
     }
 
-    // The solid layer under the strands over the hair-covered part of the head, so the scalp
-    // and their real hair never show through the new hair.
-    const capVertex = `
-      varying vec3 vDir;
-      void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-    const capFragment = `
-      uniform float front; uniform vec3 colour; varying vec3 vDir;
-      void main() {
-        vec3 d = normalize(vDir);
-        float line = d.z >= 0.0 ? 0.2 + (front - 0.2) * min(1.0, d.z / 0.45) : 0.2 + (-0.45 - 0.2) * -d.z;
-        if (d.y < line) discard;
-        gl_FragColor = vec4(colour * (0.55 + 0.45 * clamp(d.y * 0.6 + d.z * 0.5, 0.0, 1.0)), 1.0);
-      }`;
-
-    // Each person's 3D objects: occluders (face, head, body) that only write depth, the cap, the
-    // hair ribbons and the beard ribbons.
+    // Each person's 3D objects: occluders (face, head, body) that only write depth, a wider,
+    // darker underlayer of hair along each guide (so the scalp never shows through), the hair
+    // strands and the beard.
     function makeGfx(t) {
       const group = new THREE.Group();
       const faceGeo = new THREE.BufferGeometry();
@@ -983,16 +1003,15 @@
       const body = new THREE.Mesh(bodyGeo, occluderMaterial);
       for (const o of [face, skull, body]) { o.renderOrder = -1; o.frustumCulled = false; }
       skull.matrixAutoUpdate = false;
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.ShaderMaterial({
-        uniforms: { front: { value: 0.6 }, colour: { value: new THREE.Color() } },
-        vertexShader: capVertex, fragmentShader: capFragment, side: THREE.DoubleSide
+      // Drawn just behind the strands at the same depth, so the strands always sit on top.
+      const under = ribbonMesh(GUIDES * 2, POINTS, new THREE.MeshBasicMaterial({
+        vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4
       }));
-      cap.matrixAutoUpdate = false; cap.frustumCulled = false;
       const hairMesh = ribbonMesh(STRANDS, POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-      const beardMesh = ribbonMesh(BEARD_STRANDS.length, 5, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-      group.add(face, skull, body, cap, hairMesh, beardMesh);
+      const beardMesh = ribbonMesh(BEARD_STRANDS.length, BEARD_POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      group.add(face, skull, body, under, hairMesh, beardMesh);
       scene.add(group);
-      t.gfx = { group, face, skull, body, cap, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
+      t.gfx = { group, face, skull, body, under, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
     }
 
     function disposeGfx(t) {
@@ -1023,20 +1042,15 @@
       fp.setXYZ(FACE_OVAL.length, tip.x, tip.y, tip.z);
       fp.needsUpdate = true;
 
-      if (!showHair) { G.skull.visible = G.cap.visible = G.hairMesh.visible = G.body.visible = false; }
+      if (!showHair) { G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = false; }
       else {
         const shape = fitShape(t, hf);
         if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) G.roots = makeRoots(shape.front);
-        G.skull.visible = G.cap.visible = G.hairMesh.visible = G.body.visible = true;
+        G.skull.visible = G.under.visible = G.hairMesh.visible = G.body.visible = true;
         ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.985, shape.b * 0.985, shape.c * 0.985);
-        ellipsoidMatrix(G.cap.matrix, hf, shape.a * 1.006, shape.b * 1.006, shape.c * 1.006);
-        G.cap.material.uniforms.front.value = shape.front;
         const pal = t.hair.palette.map(hexRgb);
-        G.cap.material.uniforms.colour.value.setRGB(...pal[0]);
-        // The cap only covers the scalp once there's enough hair to lie on it.
-        G.cap.visible = hair.length > 0.12;
 
-        const head = t.m.head, bp = G.body.geometry.attributes.position, bz = hf.O.z + 0.05 * S;
+        const head = t.m.head, bp = G.body.geometry.attributes.position, bz = hf.O.z;
         for (let c = 0; c < SHOULDER_BINS; c++) {
           const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
           const [x, y] = toScreen(head, hx * head.size, t.hair.shoulders[c] * head.size);
@@ -1045,11 +1059,40 @@
         }
         bp.needsUpdate = true;
 
-        simulate(t, hf, shape, dt, time);
+        simulate(t, hf, shape, dt, time, bz);
+        const pts = G.pts, depthShade = G.shade;
+        const shadeAt = j => {
+          const lz = (pts[j * 3] - hf.O.x) * hf.F.x + (pts[j * 3 + 1] - hf.O.y) * hf.F.y + (pts[j * 3 + 2] - hf.O.z) * hf.F.z;
+          return 0.7 + 0.3 * Math.max(0, Math.min(1, (lz / shape.c + 1) / 2));
+        };
+
+        // The underlayer: two wide, dark ribbons along each guide, fanned slightly apart.
+        const up = G.under.geometry.attributes.position.array, uc = G.under.geometry.attributes.color.array;
+        const dark = [pal[0], pal[1].map(v => v * 0.85)];
+        let under = 0;
+        for (const g of G.roots.guides) {
+          if (!g.init || g.len < S * 0.01) continue;
+          for (let r = 0; r < 2; r++) {
+            const spread = (r ? 1 : -1) * 0.012 * S;
+            for (let j = 0; j < POINTS; j++) {
+              const k = j * 3, along = j / NODES;
+              const dx = g.p[Math.min(k + 3, NODES * 3)] - g.p[Math.max(0, k - 3)], dy = g.p[Math.min(k + 4, NODES * 3 + 1)] - g.p[Math.max(1, k - 2)];
+              const dl = Math.hypot(dx, dy) || 1;
+              pts[k] = g.p[k] - dy / dl * spread * along;
+              pts[k + 1] = g.p[k + 1] + dx / dl * spread * along;
+              pts[k + 2] = g.p[k + 2];
+              depthShade[j] = shadeAt(j);
+            }
+            writeRibbon(up, uc, under++, pts, POINTS, Math.max(1.5, S * 0.011), dark[r], depthShade);
+          }
+        }
+        G.under.geometry.setDrawRange(0, under * (POINTS - 1) * 6);
+        G.under.geometry.attributes.position.needsUpdate = true;
+        G.under.geometry.attributes.color.needsUpdate = true;
 
         // Drawn strands follow their guide, offset to their own root and fanning out a little.
         const pos = G.hairMesh.geometry.attributes.position.array, col = G.hairMesh.geometry.attributes.color.array;
-        const pts = G.pts, depthShade = G.shade, halfWidth = Math.max(0.6, S * 0.0026);
+        const halfWidth = Math.max(0.6, S * 0.0026), spreadF = 0.02 + 0.025 * Math.min(1, hair.length / 1.5);
         let drawn = 0;
         const roots = G.roots;
         for (let n = 0; n < count; n++) {
@@ -1067,13 +1110,12 @@
             const ax = g.p[k] + (g.p[k + 3] - g.p[k]) * f, ay = g.p[k + 1] + (g.p[k + 4] - g.p[k + 1]) * f, az = g.p[k + 2] + (g.p[k + 5] - g.p[k + 2]) * f;
             const dx = g.p[k + 3] - g.p[k], dy = g.p[k + 4] - g.p[k + 1], dl = Math.hypot(dx, dy) || 1;
             // Spread and curl sideways (on screen), growing towards the tip.
-            const side = (s.spread * 0.02 + Math.sin(along * s.curlFreq + s.phase) * s.curl) * S * along;
+            const side = (s.spread * spreadF + Math.sin(along * s.curlFreq + s.phase) * s.curl) * S * along;
             pts[j * 3] = ax + ox * keep - dy / dl * side;
             pts[j * 3 + 1] = ay + oy * keep + dx / dl * side;
             pts[j * 3 + 2] = az + oz * keep;
             // Darker the further round the back of the head the strand is.
-            const lz = (pts[j * 3] - hf.O.x) * hf.F.x + (pts[j * 3 + 1] - hf.O.y) * hf.F.y + (pts[j * 3 + 2] - hf.O.z) * hf.F.z;
-            depthShade[j] = 0.7 + 0.3 * Math.max(0, Math.min(1, (lz / shape.c + 1) / 2));
+            depthShade[j] = shadeAt(j);
           }
           writeRibbon(pos, col, drawn++, pts, POINTS, halfWidth, pal[s.shade], depthShade);
         }
@@ -1082,17 +1124,21 @@
         G.hairMesh.geometry.attributes.color.needsUpdate = true;
       }
 
-      drawBeard(t, hf);
+      drawBeard(t, hf, dt);
     }
 
     // ---------- Beard ----------
-    // Short strands rooted between the jaw and the mouth (with sideburns at the ears), plus a
-    // moustache from the upper lip, in 3D on the face, in each person's own colour.
+    // Strands rooted between the jaw and the mouth (with sideburns at the ears), plus a moustache
+    // from the upper lip, in 3D on the face, in each person's own colour. Each press grows it
+    // longer. Guide strands carry the physics: a short beard keeps its shape, and the longer it
+    // grows the more it hangs and swings under its own weight.
     const JAW = [234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288, 361, 323, 454];
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
     const LIPS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185];
     const NOSE_BASE = 2;
-    const BEARD_LENGTH = 0.16;       // full length, in face heights
+    const BEARD_STEP = 0.12;         // face heights added per press
+    const BEARD_NODES = 6, BEARD_POINTS = BEARD_NODES + 1;
+    const BEARD_GUIDES = MOBILE ? 40 : 80;
     const beard = { length: 0, target: 0, sampler: document.createElement('canvas') };
 
     const BEARD_STRANDS = (() => {
@@ -1107,12 +1153,26 @@
         phase: rnd() * Math.PI * 2
       }));
     })();
+    // Guides are an even spread of the beard strands; every other beard strand follows the
+    // guide nearest to it on the jaw.
+    const BEARD_GUIDE_STRANDS = (() => {
+      const jaw = BEARD_STRANDS.filter(b => !b.moustache);
+      const guides = Array.from({ length: BEARD_GUIDES }, (_, i) => jaw[Math.floor(i * jaw.length / BEARD_GUIDES)]);
+      for (const b of jaw) {
+        let best = 0, bd = Infinity;
+        guides.forEach((g, i) => { const d = (g.t - b.t) ** 2 * 4 + (g.d - b.d) ** 2; if (d < bd) { bd = d; best = i; } });
+        b.gi = best;
+      }
+      return guides;
+    })();
 
     growBeard.addEventListener('click', () => {
-      const on = growBeard.getAttribute('aria-pressed') !== 'true';
-      growBeard.setAttribute('aria-pressed', String(on));
-      growBeard.querySelector('span').textContent = on ? 'Shave beard' : 'Grow beard';
-      beard.target = on ? BEARD_LENGTH : 0;
+      beard.target += BEARD_STEP;
+      shaveBeard.hidden = false;
+    });
+    shaveBeard.addEventListener('click', () => {
+      beard.target = 0;
+      shaveBeard.hidden = true;
     });
 
     // A point partway along a polyline of landmarks, in 3D.
@@ -1157,7 +1217,89 @@
       t.beardPalette = paletteFrom(colours.slice(0, Math.ceil(colours.length * 0.35)));
     }
 
-    function drawBeard(t, hf) {
+    // Where a beard strand grows from, which way it grows and how long it is.
+    function beardRoot(b, f, hf, mouth, lips) {
+      const S = hf.S, down = scale3(hf.U, -1), lift = scale3(hf.F, 0.05 * S); // just in front of the skin
+      if (b.moustache) {
+        const l = along(f, UPPER_LIP, b.t), n = f[NOSE_BASE];
+        const up = 0.1 + 0.55 * (b.d + 0.08) * Math.sin(Math.PI * b.t);
+        return {
+          root: add3(l, scale3(sub(n, l), up), lift),
+          dir: norm(add3(down, scale3(hf.R, (b.t - 0.5) * 1.6), scale3(hf.F, 0.2))),
+          // The moustache stays short and neat however long the beard gets.
+          len: Math.min(beard.length, 0.18) * S * 0.5 * b.lengthF
+        };
+      }
+      // How far from the jaw towards the mouth the beard reaches: a thin sideburn at the ears,
+      // up to just under the lip at the chin.
+      const reach = 0.1 + 0.62 * Math.pow(Math.sin(Math.PI * b.t), 1.5);
+      const j = along(f, JAW, b.t), root = add3(j, scale3(sub(mouth, j), reach * b.d));
+      if (insidePolygon(lips, root.x, root.y)) return null;
+      // Down the face, a little outwards and forwards.
+      const out = norm(sub(root, hf.O));
+      return {
+        root: add3(root, lift),
+        dir: norm(add3(scale3(down, 0.85), scale3(out, 0.3), scale3(hf.F, 0.25))),
+        len: beard.length * S * b.lengthF * (1 - 0.45 * Math.max(0, b.d))
+      };
+    }
+
+    // Step the beard's guides: pinned at the root, pulled towards their natural shape (strongly
+    // when short, barely when long), falling under gravity and kept from folding back into
+    // the chin and neck.
+    function simulateBeard(t, hf, roots, dt) {
+      const S = hf.S, g = GRAVITY * S * dt * dt, damping = Math.exp(-dt * 4);
+      const hold = Math.max(0.06, Math.min(0.85, 1 - beard.length / 0.45));
+      if (!t.gfx.beardGuides) t.gfx.beardGuides = BEARD_GUIDE_STRANDS.map(() => ({ p: new Float32Array(BEARD_POINTS * 3), q: new Float32Array(BEARD_POINTS * 3), init: false, len: 0 }));
+      const rest = new Float32Array(BEARD_POINTS * 3);
+      BEARD_GUIDE_STRANDS.forEach((b, gi) => {
+        const G = t.gfx.beardGuides[gi], r = roots.get(b);
+        if (!r) { G.init = false; return; }
+        const growing = G.init && r.len > G.len + 1e-6;
+        G.len = r.len;
+        const seg = r.len / BEARD_NODES, p = G.p, q = G.q;
+        // Its natural shape: out along its direction, the tip drooping.
+        for (let i = 0; i < BEARD_POINTS; i++) {
+          const u = i / BEARD_NODES;
+          rest[i * 3] = r.root.x + r.dir.x * r.len * u;
+          rest[i * 3 + 1] = r.root.y + r.dir.y * r.len * u + r.len * 0.25 * u * u;
+          rest[i * 3 + 2] = r.root.z + r.dir.z * r.len * u;
+        }
+        if (!G.init || Math.hypot(p[0] - r.root.x, p[1] - r.root.y) > S * 0.3) { p.set(rest); q.set(rest); G.init = true; }
+        p[0] = q[0] = r.root.x; p[1] = q[1] = r.root.y; p[2] = q[2] = r.root.z;
+        for (let i = 1; i < BEARD_POINTS; i++) {
+          const k = i * 3;
+          const vx = (p[k] - q[k]) * damping, vy = (p[k + 1] - q[k + 1]) * damping, vz = (p[k + 2] - q[k + 2]) * damping;
+          q[k] = p[k]; q[k + 1] = p[k + 1]; q[k + 2] = p[k + 2];
+          p[k] += vx; p[k + 1] += vy + g; p[k + 2] += vz;
+        }
+        const rootZ = dot(sub(r.root, hf.O), hf.F);
+        for (let it = 0; it < 3; it++) {
+          for (let i = 1; i < BEARD_POINTS; i++) {
+            const k = i * 3, j = k - 3;
+            // Towards its natural shape.
+            p[k] += (rest[k] - p[k]) * hold; p[k + 1] += (rest[k + 1] - p[k + 1]) * hold; p[k + 2] += (rest[k + 2] - p[k + 2]) * hold;
+            // Each segment its proper length.
+            const ex = p[k] - p[j], ey = p[k + 1] - p[j + 1], ez = p[k + 2] - p[j + 2];
+            const d = Math.hypot(ex, ey, ez) || 1, diff = (d - seg) / d;
+            if (i === 1) { p[k] -= ex * diff; p[k + 1] -= ey * diff; p[k + 2] -= ez * diff; }
+            else {
+              p[k] -= ex * diff * 0.5; p[k + 1] -= ey * diff * 0.5; p[k + 2] -= ez * diff * 0.5;
+              p[j] += ex * diff * 0.5; p[j + 1] += ey * diff * 0.5; p[j + 2] += ez * diff * 0.5;
+            }
+            // Not back into the chin and neck.
+            const lz = (p[k] - hf.O.x) * hf.F.x + (p[k + 1] - hf.O.y) * hf.F.y + (p[k + 2] - hf.O.z) * hf.F.z;
+            if (lz < rootZ - 0.03 * S) {
+              const push = rootZ - 0.03 * S - lz;
+              p[k] += hf.F.x * push; p[k + 1] += hf.F.y * push; p[k + 2] += hf.F.z * push;
+            }
+          }
+        }
+        if (growing) for (let k = 3; k < BEARD_POINTS * 3; k++) q[k] = p[k] - (p[k] - q[k]) * 0.3;
+      });
+    }
+
+    function drawBeard(t, hf, dt) {
       const G = t.gfx, mesh = G.beardMesh;
       mesh.visible = beard.length > 0.003 && t.fade > 0.5;
       if (!mesh.visible) return;
@@ -1168,43 +1310,38 @@
       const f = t.face, S = hf.S;
       const mouth = scale3(add3(f[13], f[14]), 0.5);
       const lips = new Float32Array(LIPS.flatMap(j => [f[j].x, f[j].y]));
-      const down = scale3(hf.U, -1);
-      // How far from the jaw towards the mouth the beard reaches: a thin sideburn at the ears,
-      // up to just under the lip at the chin.
-      const reach = u => 0.1 + 0.62 * Math.pow(Math.sin(Math.PI * u), 1.5);
+      const roots = new Map();
+      for (const b of BEARD_STRANDS) roots.set(b, beardRoot(b, f, hf, mouth, lips));
+      simulateBeard(t, hf, roots, dt);
+
       const pos = mesh.geometry.attributes.position.array, col = mesh.geometry.attributes.color.array;
-      const pts = new Float32Array(5 * 3), shade = new Float32Array(5).fill(1);
-      const lift = scale3(hf.F, 0.05 * S); // sit just in front of the skin
+      const pts = new Float32Array(BEARD_POINTS * 3), shade = new Float32Array(BEARD_POINTS).fill(1);
       let drawn = 0;
       for (const b of BEARD_STRANDS) {
-        let root, dir, len;
-        if (b.moustache) {
-          const l = along(f, UPPER_LIP, b.t), n = f[NOSE_BASE];
-          const up = 0.1 + 0.55 * (b.d + 0.08) * Math.sin(Math.PI * b.t);
-          root = add3(l, scale3(sub(n, l), up));
-          dir = norm(add3(down, scale3(hf.R, (b.t - 0.5) * 1.6), scale3(hf.F, 0.2)));
-          len = beard.length * S * 0.5 * b.lengthF;
-        } else {
-          const j = along(f, JAW, b.t), k = reach(b.t) * b.d;
-          root = add3(j, scale3(sub(mouth, j), k));
-          if (insidePolygon(lips, root.x, root.y)) continue;
-          // Down the face, a little outwards and forwards.
-          const out = norm(sub(root, hf.O));
-          dir = norm(add3(scale3(down, 0.85), scale3(out, 0.3), scale3(hf.F, 0.25)));
-          len = beard.length * S * b.lengthF * (1 - 0.45 * Math.max(0, b.d));
+        const r = roots.get(b);
+        if (!r || r.len < 0.5) continue;
+        const guide = b.moustache ? null : G.beardGuides[b.gi], gr = guide && roots.get(BEARD_GUIDE_STRANDS[b.gi]);
+        for (let k = 0; k < BEARD_POINTS; k++) {
+          const u = k / BEARD_NODES;
+          // A slight curl, growing towards the tip.
+          const c = Math.sin(u * 3 + b.phase) * b.curl * r.len * 0.3;
+          if (guide && guide.init && gr) {
+            // Follow the guide's shape, from this strand's own root, for its own length.
+            const ratio = Math.min(1, r.len / (gr.len || 1));
+            const uu = k * ratio, i = Math.min(BEARD_NODES - 1, Math.floor(uu)), fr = uu - i, gk = i * 3;
+            const keep = 1 - 0.5 * u;
+            pts[k * 3] = guide.p[gk] + (guide.p[gk + 3] - guide.p[gk]) * fr + (r.root.x - gr.root.x) * keep - r.dir.y * c;
+            pts[k * 3 + 1] = guide.p[gk + 1] + (guide.p[gk + 4] - guide.p[gk + 1]) * fr + (r.root.y - gr.root.y) * keep + r.dir.x * c;
+            pts[k * 3 + 2] = guide.p[gk + 2] + (guide.p[gk + 5] - guide.p[gk + 2]) * fr + (r.root.z - gr.root.z) * keep;
+          } else {
+            pts[k * 3] = r.root.x + r.dir.x * r.len * u - r.dir.y * c;
+            pts[k * 3 + 1] = r.root.y + r.dir.y * r.len * u + r.dir.x * c + r.len * 0.25 * u * u;
+            pts[k * 3 + 2] = r.root.z + r.dir.z * r.len * u;
+          }
         }
-        root = add3(root, lift);
-        for (let k = 0; k < 5; k++) {
-          const u = k / 4;
-          // A slight curl, and the tips droop under their own weight.
-          const c = Math.sin(u * 3 + b.phase) * b.curl * len * 0.3;
-          pts[k * 3] = root.x + dir.x * len * u - dir.y * c;
-          pts[k * 3 + 1] = root.y + dir.y * len * u + dir.x * c + len * 0.25 * u * u;
-          pts[k * 3 + 2] = root.z + dir.z * len * u;
-        }
-        writeRibbon(pos, col, drawn++, pts, 5, Math.max(0.5, S * 0.0018), pal[b.shade], shade);
+        writeRibbon(pos, col, drawn++, pts, BEARD_POINTS, Math.max(0.5, S * 0.0018), pal[b.shade], shade);
       }
-      mesh.geometry.setDrawRange(0, drawn * 4 * 6);
+      mesh.geometry.setDrawRange(0, drawn * BEARD_NODES * 6);
       mesh.geometry.attributes.position.needsUpdate = true;
       mesh.geometry.attributes.color.needsUpdate = true;
     }
@@ -1216,9 +1353,9 @@
         camera.right = w; camera.bottom = h;
         camera.updateProjectionMatrix();
       }
-      hair.length += (hair.target - hair.length) * 0.06;
+      hair.length += (hair.target - hair.length) * 0.04;
       if (Math.abs(hair.target - hair.length) < 0.002) hair.length = hair.target;
-      beard.length += (beard.target - beard.length) * 0.03;
+      beard.length += (beard.target - beard.length) * 0.04;
       if (Math.abs(beard.target - beard.length) < 0.001) beard.length = beard.target;
 
       const people = tracks.filter(t => t.face);
