@@ -3,66 +3,183 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Webcam Live</title>
+  <title>Barber Shop Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --wall: #0f1412;
+      --wall-2: #16201c;
+      --cream: #f3ead8;
+      --muted: #a79f8f;
+      --brass: #c9a25a;
+      --brass-hi: #f1d596;
+      --brass-lo: #7a5a24;
+      --red: #c8352e;
+      --blue: #2c4f8f;
+      --glass: #0b0d0d;
+    }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; height: 100dvh; background: #000; color: #eee; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; overflow: hidden; }
+    html, body { margin: 0; height: 100%; height: 100dvh; overflow: hidden; }
+    body {
+      color: var(--cream);
+      font: 15px/1.4 "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      /* Dark tiled wall under a warm spotlight. */
+      background:
+        radial-gradient(ellipse 70% 55% at 50% 0%, rgba(241, 213, 150, .16), transparent 70%),
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 44px 22px,
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(var(--wall-2), var(--wall));
+      display: flex; flex-direction: column; align-items: center;
+      padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom));
+      gap: 14px;
+    }
     video { display: none; }
-    canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
-    #status { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; text-align: center; }
+
+    /* ---- Sign ---- */
+    header { text-align: center; line-height: 1; }
+    h1 { margin: 0; font: 400 clamp(34px, 5vw, 58px)/.9 "Bebas Neue", sans-serif; letter-spacing: .06em;
+         color: var(--cream); text-shadow: 0 0 18px rgba(241, 213, 150, .35), 0 2px 0 rgba(0,0,0,.6); }
+    h1 span { color: var(--brass-hi); }
+    .tagline { margin-top: 6px; font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: var(--muted); }
+    .tagline::before, .tagline::after { content: ""; display: inline-block; width: 28px; height: 1px; background: var(--brass); vertical-align: middle; margin: 0 10px; }
+
+    /* ---- Mirror, with barber poles either side ---- */
+    .station { display: flex; align-items: center; justify-content: center; gap: 22px; flex: 1; min-height: 0; width: 100%; }
+    .mirror {
+      position: relative;
+      width: min(1100px, 100%, calc((100dvh - 250px) * 4 / 3));
+      aspect-ratio: 4 / 3;
+      padding: 14px;
+      border-radius: 30px;
+      /* Polished brass frame. */
+      background: linear-gradient(145deg, var(--brass-hi), var(--brass) 30%, var(--brass-lo) 55%, var(--brass) 75%, var(--brass-hi));
+      box-shadow: 0 30px 60px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.5);
+    }
+    .glass {
+      position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 18px; background: var(--glass);
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.6);
+    }
+    .glass canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    /* A soft glare across the glass and darker edges. */
+    .glass::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+      background:
+        linear-gradient(115deg, transparent 30%, rgba(255,255,255,.07) 38%, rgba(255,255,255,.02) 46%, transparent 52%),
+        radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.35));
+    }
+    .pole { display: none; width: 30px; height: min(60%, 420px); position: relative; border-radius: 15px; overflow: hidden;
+            background: repeating-linear-gradient(-45deg, var(--red) 0 16px, #fff 16px 32px, var(--blue) 32px 48px, #fff 48px 64px);
+            background-size: 100% 90.5px; animation: spin 1.6s linear infinite;
+            box-shadow: inset -6px 0 10px rgba(0,0,0,.35), inset 6px 0 8px rgba(255,255,255,.35), 0 0 0 4px var(--brass), 0 10px 24px rgba(0,0,0,.5); }
+    @keyframes spin { to { background-position: 0 90.5px; } }
+    @media (prefers-reduced-motion: reduce) { .pole { animation: none; } }
+    @media (min-width: 1000px) { .pole { display: block; } }
+
+    #status { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--cream); }
     #status[hidden] { display: none; }
-    button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid #555; background: #222; color: #eee; cursor: pointer; }
-    button:hover { background: #333; }
+    #face { position: absolute; z-index: 6; top: 14px; left: 14px; font-size: 12px; letter-spacing: .04em; padding: 5px 12px; border-radius: 999px; background: rgba(0,0,0,.6); }
+
+    /* ---- Buttons ---- */
+    button { font: inherit; cursor: pointer; border: 0; color: inherit; }
     button:disabled { opacity: .6; cursor: default; }
-    #controls { position: fixed; z-index: 20; left: 16px; bottom: 16px; right: 16px; width: fit-content; max-width: calc(100% - 32px); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 10px 14px; border-radius: 10px; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); font-size: 13px; }
-    #controls span { opacity: .7; }
-    #controls label { display: flex; align-items: center; gap: 8px; }
-    #controls button { padding: 5px 12px; font-size: 13px; }
-    #toggleControls { display: none; }
-    #face { position: fixed; z-index: 20; top: max(16px, env(safe-area-inset-top)); left: 16px; font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(0,0,0,.55); }
+    .chair { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center; }
+    .big {
+      display: inline-flex; align-items: center; gap: 10px; padding: 14px 28px; border-radius: 999px; white-space: nowrap;
+      font: 400 24px/1 "Bebas Neue", sans-serif; letter-spacing: .08em;
+      color: #1b140a; background: linear-gradient(180deg, var(--brass-hi), var(--brass));
+      box-shadow: 0 6px 0 var(--brass-lo), 0 10px 22px rgba(0,0,0,.45);
+      transition: transform .08s, box-shadow .08s, filter .15s;
+    }
+    .big:hover { filter: brightness(1.06); }
+    .big:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--brass-lo), 0 4px 10px rgba(0,0,0,.4); }
+    .big[aria-pressed="true"] { background: linear-gradient(180deg, #e8574f, var(--red)); color: #fff; box-shadow: 0 6px 0 #7d1d19, 0 10px 22px rgba(0,0,0,.45); }
+    .big svg { width: 22px; height: 22px; }
+    .small { padding: 10px 18px; border-radius: 999px; background: rgba(243, 234, 216, .08); border: 1px solid rgba(243, 234, 216, .2); font-weight: 500; }
+    .small:hover { background: rgba(243, 234, 216, .14); }
+    #retry { padding: 10px 20px; border-radius: 999px; background: var(--brass); color: #1b140a; font-weight: 700; }
+
+    /* ---- Extras ---- */
+    .extras { position: relative; }
+    .extras-panel {
+      position: absolute; bottom: calc(100% + 10px); right: 0; z-index: 30; width: min(340px, calc(100vw - 32px));
+      display: grid; gap: 12px; padding: 16px; border-radius: 16px; background: rgba(16, 20, 18, .96);
+      border: 1px solid rgba(201, 162, 90, .5); box-shadow: 0 20px 40px rgba(0,0,0,.5); font-size: 14px;
+    }
+    .extras-panel[hidden] { display: none; }
+    .extras-panel h2 { margin: 0; font: 400 20px/1 "Bebas Neue", sans-serif; letter-spacing: .08em; color: var(--brass-hi); }
+    .extras-panel .row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+    .extras-panel label { display: flex; align-items: center; gap: 8px; }
+    .extras-panel label.slider { justify-content: space-between; }
+    .extras-panel input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--brass); margin: 0; }
+    .extras-panel input[type=range] { flex: 1; max-width: 190px; accent-color: var(--brass); }
+
     @media (max-width: 700px) {
-      /* Fill the phone screen rather than letterboxing. */
-      canvas { object-fit: cover; }
-      #controls { left: 8px; right: 8px; bottom: max(8px, env(safe-area-inset-bottom)); width: auto; max-width: none;
-                  gap: 10px 16px; padding: 12px; font-size: 14px; }
-      #controls input[type=checkbox] { width: 20px; height: 20px; margin: 0; }
-      /* Sliders get a full row each so they're easy to drag. */
-      #controls label:has(input[type=range]) { flex: 1 1 100%; }
-      #controls input[type=range] { flex: 1; }
-      #controls button { padding: 9px 14px; font-size: 14px; flex: 1; }
-      #toggleControls { display: block; flex: 1 1 100%; }
-      #controls.collapsed { gap: 0; padding: 6px; }
-      #controls.collapsed > :not(#toggleControls) { display: none; }
+      body { gap: 10px; padding-left: 10px; padding-right: 10px; }
+      .tagline { display: none; }
+      .mirror { aspect-ratio: 3 / 4; width: min(100%, calc((100dvh - 190px) * 3 / 4)); padding: 10px; border-radius: 24px; }
+      .glass { border-radius: 16px; }
+      .big { padding: 13px 14px; font-size: 19px; gap: 8px; flex: 1; justify-content: center; }
+      .chair { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="canvas"></canvas>
-  <canvas id="hairCanvas"></canvas>
-  <div id="face" hidden>Looking for faces…</div>
-  <div id="controls">
-    <span>Pulse:</span>
-    <label><input id="pulseEyes" type="checkbox"> Eyes</label>
-    <label><input id="pulseNose" type="checkbox"> Nose</label>
-    <label><input id="pulseMouth" type="checkbox"> Mouth</label>
-    <label><input id="browWobble" type="checkbox"> Eyebrow wave</label>
-    <label>Wave speed <input id="waveSpeed" type="range" min="0.05" max="1.5" step="0.05" value="0.35"></label>
-    <label>Speed <input id="speed" type="range" min="0.2" max="4" step="0.1" value="1.2"></label>
-    <label>Size <input id="amount" type="range" min="0" max="1" step="0.01" value="0.6"></label>
-    <label><input id="growBeard" type="checkbox"> Grow beard</label>
-    <button id="growHair" type="button">Grow hair</button>
-    <button id="resetHair" type="button" hidden>Reset hair</button>
-    <button id="toggleControls" type="button">Hide controls</button>
+  <header>
+    <h1>Barber Shop <span>Simulator</span></h1>
+    <div class="tagline">Walk-ins welcome</div>
+  </header>
+
+  <div class="station">
+    <div class="pole" aria-hidden="true"></div>
+    <div class="mirror">
+      <div class="glass">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <canvas id="hairCanvas"></canvas>
+        <div id="face" hidden>Looking for faces…</div>
+        <div id="status">
+          <p id="message">Requesting camera access…</p>
+          <button id="retry" hidden>Try again</button>
+        </div>
+      </div>
+    </div>
+    <div class="pole" aria-hidden="true"></div>
   </div>
-  <div id="status">
-    <p id="message">Requesting camera access…</p>
-    <button id="retry" hidden>Try again</button>
+
+  <div class="chair">
+    <button id="growHair" class="big" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12"/></svg>
+      <span>Grow hair</span>
+    </button>
+    <button id="growBeard" class="big" type="button" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9c0 7 3.5 11 8 11s8-4 8-11"/><path d="M8 13c1.3-1 2.6-1.5 4-1.5s2.7.5 4 1.5"/></svg>
+      <span>Grow beard</span>
+    </button>
+    <button id="resetHair" class="small" type="button" hidden>Cut hair</button>
+    <div class="extras">
+      <button id="extrasToggle" class="small" type="button" aria-expanded="false" aria-controls="extras">Extras</button>
+      <div id="extras" class="extras-panel" hidden>
+        <h2>Face pulse</h2>
+        <div class="row">
+          <label><input id="pulseEyes" type="checkbox"> Eyes</label>
+          <label><input id="pulseNose" type="checkbox"> Nose</label>
+          <label><input id="pulseMouth" type="checkbox"> Mouth</label>
+        </div>
+        <label class="slider">Speed <input id="speed" type="range" min="0.2" max="4" step="0.1" value="1.2"></label>
+        <label class="slider">Size <input id="amount" type="range" min="0" max="1" step="0.01" value="0.6"></label>
+        <h2>Eyebrows</h2>
+        <label><input id="browWobble" type="checkbox"> Eyebrow wave</label>
+        <label class="slider">Wave speed <input id="waveSpeed" type="range" min="0.05" max="1.5" step="0.05" value="0.35"></label>
+      </div>
+    </div>
   </div>
 
   <script type="module">
     import { FaceLandmarker, ImageSegmenter, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs';
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js';
 
     const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm';
     const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
@@ -82,14 +199,17 @@
     const MOBILE = matchMedia('(max-width: 700px), (pointer: coarse)').matches;
     const MAX_FACES = MOBILE ? 3 : 4; // the shader's arrays are sized for 4
 
-    const controls = $('controls'), toggleControls = $('toggleControls');
-    toggleControls.addEventListener('click', () => {
-      const collapsed = controls.classList.toggle('collapsed');
-      toggleControls.textContent = collapsed ? 'Show controls' : 'Hide controls';
+    const extras = $('extras'), extrasToggle = $('extrasToggle');
+    extrasToggle.addEventListener('click', () => {
+      extras.hidden = !extras.hidden;
+      extrasToggle.setAttribute('aria-expanded', String(!extras.hidden));
+    });
+    document.addEventListener('click', e => {
+      if (!extras.hidden && !e.target.closest('.extras')) { extras.hidden = true; extrasToggle.setAttribute('aria-expanded', 'false'); }
     });
 
     // Browsers restore form state on reload; always start from the defaults in the HTML.
-    for (const input of document.querySelectorAll('#controls input')) {
+    for (const input of document.querySelectorAll('#extras input')) {
       input.checked = input.defaultChecked;
       input.value = input.defaultValue;
     }
@@ -207,9 +327,10 @@
 
     // ---------- Face tracking ----------
     // Each person on screen is a "track" that is matched to the nearest face every frame, so
-    // smoothing, hair outline and hair colour stay with the right person.
+    // filtering, hair and colours stay with the right person. Landmarks come with depth, so each
+    // person's head is followed in 3D.
     let landmarker = null;
-    let lastVideoTime = -1;
+    let lastVideoTime = -1, lastDetectAt = 0;
     let tracks = [];
     let nextTrackId = 1;
 
@@ -241,7 +362,7 @@
       return {
         // A little above the middle of the face, roughly the centre of the skull.
         cx: chin.x + (top.x - chin.x) * 0.62, cy: chin.y + (top.y - chin.y) * 0.62,
-        ux: (top.x - chin.x) / size, uy: (top.y - chin.y) / size, // "up" the face
+        ux: (top.x - chin.x) / size, uy: (top.y - chin.y) / size, // "up" the face, on screen
         size
       };
     }
@@ -256,21 +377,37 @@
       };
     }
 
-    // Light smoothing to take the jitter out of the landmarks.
-    function smoothInto(target, m, t) {
-      for (const k in m) {
-        if (typeof m[k] === 'object') smoothInto(target[k], m[k], t);
-        else target[k] += (m[k] - target[k]) * t;
+    // One Euro filter: strong smoothing when a point is still (no jitter), almost none when it's
+    // moving fast (no lag), so overlays stay locked to the face.
+    class OneEuro {
+      constructor(minCutoff, beta) { this.minCutoff = minCutoff; this.beta = beta; this.x = null; this.dx = null; }
+      filter(v, dt) {
+        if (!this.x) { this.x = Float32Array.from(v); this.dx = new Float32Array(v.length); return this.x; }
+        const alpha = cutoff => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt));
+        const ad = alpha(1);
+        for (let i = 0; i < v.length; i++) {
+          this.dx[i] += ((v[i] - this.x[i]) / dt - this.dx[i]) * ad;
+          this.x[i] += (v[i] - this.x[i]) * alpha(this.minCutoff + this.beta * Math.abs(this.dx[i]));
+        }
+        return this.x;
       }
     }
+
+    // Landmarks in pixels, with depth in the same units (bigger z is nearer the camera).
+    const toPoints = flat => Array.from({ length: flat.length / 3 }, (_, i) => ({ x: flat[i * 3], y: flat[i * 3 + 1], z: flat[i * 3 + 2] }));
 
     function track(w, h) {
       if (!landmarker || video.currentTime === lastVideoTime) return false;
       lastVideoTime = video.currentTime;
+      const now = performance.now(), dt = Math.max(0.005, Math.min(0.1, (now - lastDetectAt) / 1000));
+      lastDetectAt = now;
 
-      const faces = landmarker.detectForVideo(video, performance.now()).faceLandmarks
-        .map(raw => raw.map(p => ({ x: p.x * w, y: p.y * h })));
-      const found = faces.map(face => ({ face, m: measure(face) }));
+      const found = landmarker.detectForVideo(video, now).faceLandmarks.map(raw => {
+        const flat = new Float32Array(raw.length * 3);
+        raw.forEach((p, i) => { flat[i * 3] = p.x * w; flat[i * 3 + 1] = p.y * h; flat[i * 3 + 2] = -p.z * w; });
+        const face = toPoints(flat);
+        return { flat, face, m: measure(face) };
+      });
       faceBadge.hidden = found.length > 0;
 
       // Match each existing person to the nearest new face, closest pairs first.
@@ -284,50 +421,80 @@
       for (const { t, f } of pairs) {
         if (usedTracks.has(t) || usedFaces.has(f)) continue;
         usedTracks.add(t); usedFaces.add(f);
-        smoothInto(t.m, f.m, 0.5);
-        t.face = t.face ? t.face.map((p, i) => ({ x: p.x + (f.face[i].x - p.x) * 0.5, y: p.y + (f.face[i].y - p.y) * 0.5 })) : f.face;
+        t.face = toPoints(t.filter.filter(f.flat, dt));
+        t.m = measure(t.face);
         t.fade += (1 - t.fade) * 0.3;
       }
       // People who have gone fade out; new faces start new tracks.
       for (const t of tracks) if (!usedTracks.has(t)) { t.fade *= 0.8; t.face = null; }
+      for (const t of tracks) if (t.fade <= 0.02) disposeGfx(t);
       tracks = tracks.filter(t => t.fade > 0.02);
       for (const f of found) {
         if (usedFaces.has(f) || tracks.length >= MAX_FACES) continue;
-        tracks.push({ id: nextTrackId++, m: f.m, face: f.face, fade: 0.3, hair: newHairState() });
+        const filter = new OneEuro(1.2, 0.05);
+        const face = toPoints(filter.filter(f.flat, dt));
+        tracks.push({ id: nextTrackId++, filter, face, m: measure(face), fade: 0.3, hair: newHairState() });
       }
       return true;
     }
 
+    // ---------- 3D head ----------
+    // A head frame built from the 3D landmarks every frame: origin near the middle of the skull,
+    // R to the person's right on screen, U up the face, F out of the face towards the camera,
+    // and S the face height in pixels.
+    const v3 = (x, y, z) => ({ x, y, z });
+    const sub = (a, b) => v3(a.x - b.x, a.y - b.y, a.z - b.z);
+    const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
+    const scale3 = (a, k) => v3(a.x * k, a.y * k, a.z * k);
+    const add3 = (...vs) => vs.reduce((a, b) => v3(a.x + b.x, a.y + b.y, a.z + b.z));
+    const norm = a => scale3(a, 1 / (Math.hypot(a.x, a.y, a.z) || 1));
+    const cross = (a, b) => v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+    const EAR_L = 234, EAR_R = 454, NOSE_TIP = 1;
+
+    function headFrame(face) {
+      const l = face[EAR_L], r = face[EAR_R], top = face[FOREHEAD], chin = face[CHIN];
+      const R = norm(sub(r, l));
+      const up = sub(top, chin);
+      const U = norm(sub(up, scale3(R, dot(up, R))));
+      let F = norm(cross(R, U));
+      const ears = scale3(add3(l, r), 0.5);
+      if (dot(sub(face[NOSE_TIP], ears), F) < 0) F = scale3(F, -1);
+      const S = Math.hypot(up.x, up.y, up.z);
+      const O = add3(ears, scale3(U, 0.1 * S), scale3(F, -0.05 * S));
+      return { O, R, U, F, S, width: Math.hypot(r.x - l.x, r.y - l.y, r.z - l.z) };
+    }
+
+    const toLocal = (hf, p) => { const d = sub(p, hf.O); return v3(dot(d, hf.R), dot(d, hf.U), dot(d, hf.F)); };
+    const toWorld = (hf, x, y, z) => v3(
+      hf.O.x + hf.R.x * x + hf.U.x * y + hf.F.x * z,
+      hf.O.y + hf.R.y * x + hf.U.y * y + hf.F.y * z,
+      hf.O.z + hf.R.z * x + hf.U.z * y + hf.F.z * z);
+
     // ---------- Hair ----------
-    // Strands grow across each person's scalp, from their hairline back over the top of their
-    // head, then fall past the outline of their real hair (found with MediaPipe's segmenter).
-    // The part on the scalp is fixed to the head; the part that hangs free is simulated:
-    // guide strands are chains of points with momentum and gravity that collide with the
-    // person's skull and the outline of their face, and the drawn strands follow the guides.
-    const hairCtx = hairCanvas.getContext('2d');
+    // Hair is simulated and drawn in 3D. Each person's head and hair is modelled as an ellipsoid
+    // fitted to their face landmarks and to the outline of their real hair (from MediaPipe's
+    // segmenter). Guide strands rooted over the hair-covered part of it carry momentum, fall
+    // under gravity and are kept outside it; thousands of drawn strands follow the guides.
+    // Three.js draws them on the GPU with depth, so the face, head and body hide whatever is
+    // behind them.
     const BINS = 72;                 // directions around the head used to trace outlines
     const MAX_ANGLE = 1.95;          // radians either side of straight up (~112°)
-    const LOCKS = MOBILE ? 140 : 280; // simulated guide strands per person
-    const BACK_LOCKS = MOBILE ? 40 : 80; // more guides hanging from the back of the head
-    const NODES = MOBILE ? 11 : 14;  // segments per guide strand
-    // Segments get longer towards the tip: short ones near the root let the hair bend
-    // closely round the head, longer ones further down keep the cost down.
+    const SHOULDER_BINS = 41;        // columns across the body, 2 face heights either side
+    const GUIDES = MOBILE ? 150 : 300; // simulated guide strands per person
+    const NODES = MOBILE ? 10 : 13;  // segments per guide strand
+    const POINTS = NODES + 1;
+    const ITERATIONS = MOBILE ? 3 : 4; // constraint passes per frame
+    const STRANDS = MOBILE ? 1600 : 5500; // drawn strands per person (shared out if several)
+    const HAIR_SCALE = MOBILE ? 0.75 : 1; // the 3D layer renders at this fraction of the video's size
+    const GRAVITY = 3.2;             // face heights per second²
+    const GROW_STEP = 0.3;           // face heights added per press
+    // Segments get longer towards the tip: short ones near the root let the hair bend closely
+    // round the head, longer ones further down keep the cost down.
     const SEG_WEIGHTS = (() => {
-      const w = Array.from({ length: NODES }, (_, i) => Math.pow(1.13, i));
+      const w = Array.from({ length: NODES }, (_, i) => Math.pow(1.12, i));
       const sum = w.reduce((a, b) => a + b, 0);
       return w.map(v => v / sum);
     })();
-    const ITERATIONS = MOBILE ? 3 : 4; // constraint passes per frame
-    const STRAND_BUDGET = MOBILE ? 1600 : 5000; // drawn strands, shared between everyone
-    const SHOULDER_BINS = 41;        // columns across the body, 2 face heights either side
-    const HAIR_SCALE = MOBILE ? 0.6 : 1; // hair is drawn at this fraction of the video's size
-    const GRAVITY = 3.2;             // face heights per second²
-    // The scalp part is drawn once into a cached image that follows the head; it's only
-    // redrawn when the hair grows or its outline changes, and at most this often (ms).
-    const REBUILD_MS = MOBILE ? 700 : 300;
-    const GROWING_REBUILD_MS = MOBILE ? 140 : 60;
-    const MAX_SPRITE = MOBILE ? 1024 : 2048; // largest cached scalp image, in pixels
-    const GROW_STEP = 0.3;           // face heights added per press
 
     const hair = {
       segmenter: null,
@@ -343,18 +510,16 @@
       return {
         ready: false,
         updatedAt: 0,
-        sprite: null,
-        guides: null,
-        last: null,                                  // head centre last frame, to spot jumps
-        outline: new Float32Array(BINS).fill(0.62),  // head centre to the edge of their hair
-        hairline: new Float32Array(BINS).fill(0.5),  // head centre to where their hair starts
+        outline: new Float32Array(BINS).fill(0.62),  // 2D: head centre to the edge of their hair
+        hairline: new Float32Array(BINS).fill(0.5),  // 2D: head centre to where their hair starts
         // How far below the head's centre their neck and shoulders start, in face heights,
         // across the body. Hair behind them is hidden. Starts as a typical shape.
         shoulders: Float32Array.from({ length: SHOULDER_BINS }, (_, c) => {
           const x = Math.abs(-2 + 4 * c / (SHOULDER_BINS - 1));
           return x < 0.35 ? 0.72 : 1 + (x - 0.35) * 0.12;
         }),
-        palette: ['#2a1d15', '#35251a', '#402d20', '#4d3727', '#5c4331', '#6e533e']
+        palette: ['#2a1d15', '#35251a', '#402d20', '#4d3727', '#5c4331', '#6e533e'],
+        shape: null                  // the fitted head ellipsoid, smoothed
       };
     }
 
@@ -368,65 +533,10 @@
       };
     }
 
-    // Strands are grouped into locks that share a guide, curl and length, like real hair.
-    const { locks, strands } = (() => {
-      const rnd = random(1234);
-      const locks = Array.from({ length: LOCKS }, () => {
-        const angle = (rnd() * 2 - 1) * MAX_ANGLE;
-        return {
-          angle,
-          side: angle === 0 ? 1 : Math.sign(angle),
-          curlAmp: 0.004 + rnd() * 0.016,
-          curlFreq: 4 + rnd() * 9,
-          phase: rnd() * Math.PI * 2,
-          lengthF: 0.8 + rnd() * 0.35,
-          stiffness: 0.5 + rnd() * 0.5,
-          // About half the locks at the sides fall in front of the shoulders, framing the face;
-          // the rest fall behind the shoulders and neck, the way long hair is usually worn.
-          front: Math.abs(angle) > 1.0 && rnd() < 0.5,
-          back: false
-        };
-      });
-      // Hair from the back of the head: it hangs straight down behind the head and neck, so
-      // it shows either side of the neck but never in front of the neck or face.
-      for (let i = 0; i < BACK_LOCKS; i++) {
-        const angle = (rnd() * 2 - 1) * 1.45;
-        locks.push({
-          angle,
-          side: angle === 0 ? 1 : Math.sign(angle),
-          curlAmp: 0.004 + rnd() * 0.012,
-          curlFreq: 4 + rnd() * 9,
-          phase: rnd() * Math.PI * 2,
-          lengthF: 0.85 + rnd() * 0.3,
-          stiffness: 0.5 + rnd() * 0.5,
-          front: false,
-          back: true
-        });
-      }
-      const strands = Array.from({ length: 5000 }, () => {
-        const li = Math.floor(rnd() * locks.length), lock = locks[li];
-        return {
-          li,
-          angle: lock.angle + (rnd() - 0.5) * 0.09,
-          depth: Math.pow(rnd(), 2.2),          // 0 = at the hairline, 1 = at the edge; most start near the front
-          lengthF: lock.lengthF * (0.82 + rnd() * 0.3),
-          offset: (rnd() - 0.5) * 2,            // spread around its guide
-          shade: Math.min(5, Math.floor(Math.pow(rnd(), 1.3) * 6)),
-          side: lock.side
-        };
-      });
-      // Shuffle so any prefix of the list is an even spread (fewer strands for more people).
-      for (let i = strands.length - 1; i > 0; i--) {
-        const j = Math.floor(rnd() * (i + 1));
-        [strands[i], strands[j]] = [strands[j], strands[i]];
-      }
-      return { locks, strands };
-    })();
-
     async function loadSegmenter() {
       hair.loading = true;
       growHair.disabled = true;
-      growHair.textContent = 'Loading hair…';
+      growHair.querySelector('span').textContent = 'Loading…';
       try {
         hair.segmenter = await createTask(ImageSegmenter, {
           baseOptions: { modelAssetPath: SEGMENT_MODEL },
@@ -440,7 +550,7 @@
       }
       hair.loading = false;
       growHair.disabled = false;
-      growHair.textContent = 'Grow hair';
+      growHair.querySelector('span').textContent = 'Grow hair';
     }
 
     growHair.addEventListener('click', async () => {
@@ -455,8 +565,8 @@
       resetHair.hidden = true;
     });
 
-    // Head-relative polar coordinates: angle from "up" (positive towards image right) and
-    // distance in face heights.
+    // 2D head-relative polar coordinates: angle from "up" (positive towards image right) and
+    // distance in face heights. Used for tracing the real hair in the segmentation mask.
     function toPolar(head, x, y) {
       const dx = x - head.cx, dy = y - head.cy;
       const along = dx * -head.uy + dy * head.ux, up = dx * head.ux + dy * head.uy;
@@ -487,7 +597,10 @@
       });
     }
 
-    // Segment the frame once, then trace each person's hair outline and pick up their colours.
+    const toScreen = (head, x, y) => [head.cx - x * head.uy - y * head.ux, head.cy + x * head.ux - y * head.uy];
+
+    // Segment the frame once, then for each person trace the outline of their real hair, their
+    // neck and shoulders, and pick up their hair colours.
     function analyseHair(w, h) {
       const result = hair.segmenter.segmentForVideo(video, performance.now());
       const mask = result.categoryMask;
@@ -609,413 +722,372 @@
       hair.analyses++;
     }
 
-    // Where a strand sits on the head, in face heights: its root, the point where it leaves the
-    // scalp at the edge of the hair, and how far it lies along the scalp between them.
-    function strandGeometry(st, angle, depth) {
-      const edgeR = sampleBins(st.outline, angle), lineR = sampleBins(st.hairline, angle);
-      const rootR = lineR + Math.max(0, edgeR - lineR) * depth * 0.97;
-      return { rootR, edgeR, scalp: Math.max(0, edgeR - rootR) };
-    }
-
-    // Where a lock or strand starts hanging free, as a distance from the head's centre in face
-    // heights, and how much of its length is used up before that. Back-of-head hair starts
-    // behind the head and hangs from there; the rest leaves the scalp at the edge of the hair.
-    function hangStart(st, angle, depth, back) {
-      if (back) return { r: sampleBins(st.outline, angle) * 0.78, used: 0.1 };
-      const g = strandGeometry(st, angle, depth);
-      return { r: g.edgeR, used: g.scalp };
-    }
-
-    // Head-local directions for an angle around the head: outwards, and along the scalp
-    // away from the crown. Local x is the head's right, local y is down the face.
-    const outward = a => [Math.sin(a), -Math.cos(a)];
-    const alongScalp = (a, side) => [Math.cos(a) * side, Math.sin(a) * side];
-
-    // Draw the scalp part of one person's hair (roots to the edge of their hair) into ctx in
-    // head-local pixels, with a head size of S pixels.
-    function buildScalp(ctx, st, S, count) {
-      const total = hair.length * S;
-      const width = Math.max(0.9, S * 0.0042);
-      const paths = st.palette.map(() => new Path2D());
-      const volume = new Path2D();
-      const STEPS = 8;
-
-      // A soft, solid base over the whole scalp in their hair colour, so their real hair doesn't
-      // show through in patches. Feathered so it has no hard edge; drawn only as far as the hair
-      // has grown, so it spreads back from the hairline as it grows.
-      const grown = Math.min(1, total / (0.35 * S));
-      ctx.beginPath();
-      for (let i = 0; i < BINS; i++) {
-        const a = binAngle(i), r = st.hairline[i] + (st.outline[i] + 0.02 - st.hairline[i]) * grown;
-        const [ox, oy] = outward(a);
-        i ? ctx.lineTo(ox * r * S, oy * r * S) : ctx.moveTo(ox * r * S, oy * r * S);
+    // Fit the head-and-hair ellipsoid (semi-axes a right, b up, c front-to-back, in pixels) to the
+    // landmarks and, once it's known, to the outline of their real hair.
+    function fitShape(t, hf) {
+      const st = t.hair, S = hf.S, head = t.m.head;
+      const brow = toLocal(hf, t.face[FOREHEAD]);
+      let a = hf.width * 0.54, b = brow.y + 0.3 * S;
+      if (st.ready) {
+        // Where the top and sides of their real hair are, measured on screen.
+        const onScreen = angle => {
+          const r = sampleBins(st.outline, angle) * S;
+          const [x, y] = toScreen(head, Math.sin(angle) * r, -Math.cos(angle) * r);
+          return toLocal(hf, v3(x, y, hf.O.z));
+        };
+        b = Math.max(b, onScreen(0).y + 0.02 * S);
+        a = Math.max(a, (Math.abs(onScreen(1.5).x) + Math.abs(onScreen(-1.5).x)) / 2 + 0.02 * S);
       }
-      for (let i = BINS - 1; i >= 0; i--) {
-        const a = binAngle(i), r = st.hairline[i] + 0.01;
-        const [ox, oy] = outward(a);
-        ctx.lineTo(ox * r * S, oy * r * S);
+      a = Math.min(a, 0.95 * S); b = Math.min(b, 1.1 * S);
+      // Deep enough front to back that the forehead sits on the surface.
+      const c = Math.max(a * 1.05, brow.z / Math.sqrt(Math.max(0.15, 1 - (brow.y / b) ** 2)));
+      // Where the hairline is at the front, as a height on the unit sphere.
+      const front = Math.min(0.9, brow.y / b + 0.1);
+      const target = { a, b, c, front };
+      if (!st.shape) st.shape = target;
+      else for (const k in target) st.shape[k] += (target[k] - st.shape[k]) * 0.1;
+      return st.shape;
+    }
+
+    // Is this direction on the unit sphere covered in hair? Above the hairline at the front,
+    // above the ears at the sides, down to the nape at the back.
+    function inHair(d, front) {
+      const sides = 0.2, back = -0.45;
+      // Stays high across the forehead and temples, dropping only near the ears.
+      const line = d.z >= 0 ? sides + (front - sides) * Math.min(1, d.z / 0.45) : sides + (back - sides) * -d.z;
+      return d.y >= line;
+    }
+
+    // Guide and drawn strand roots over the hair-covered part of the head, as unit-sphere
+    // directions. Made once per person (their hairline sets which part is covered).
+    function makeRoots(front) {
+      const rnd = random(4321);
+      const cand = [];
+      const N = 6000, golden = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < N; i++) {
+        const y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), th = golden * i;
+        const d = v3(Math.cos(th) * r, y, Math.sin(th) * r);
+        if (inHair(d, front)) cand.push(d);
       }
-      ctx.closePath();
-      ctx.filter = `blur(${Math.max(1, S * 0.006)}px)`;
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = st.palette[1];
-      ctx.fill();
-      ctx.filter = 'none';
-      ctx.globalAlpha = 1;
-
-      for (let n = 0; n < count; n++) {
-        const s = strands[n], L = locks[s.li];
-        if (L.back) continue;
-        const g = strandGeometry(st, s.angle, s.depth);
-        // Run a little past the edge of the hair so the strands meet the hanging hair cleanly.
-        const scalp = Math.min(total * s.lengthF, (g.scalp + 0.03) * S);
-        if (scalp <= 0) continue;
-        const [ox, oy] = outward(s.angle), [tx, ty] = alongScalp(s.angle, s.side);
-        let x = ox * g.rootR * S, y = oy * g.rootR * S, px = x, py = y, dx = ox, dy = oy;
-        const path = paths[s.shade], vol = n % 3 === 0;
-        path.moveTo(x, y);
-        if (vol) volume.moveTo(x, y);
-        for (let k = 1; k <= STEPS; k++) {
-          // Swept back and away from a centre parting, curving round the head as it goes.
-          const sweep = 0.3 + 0.6 * k / STEPS;
-          dx = ox + tx * sweep; dy = oy + ty * sweep;
-          const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
-          x += dx * scalp / STEPS; y += dy * scalp / STEPS;
-          const curl = Math.sin(k / STEPS * L.curlFreq + L.phase) * L.curlAmp * S * 0.2;
-          const qx = x - dy * curl, qy = y + dx * curl;
-          path.quadraticCurveTo(px, py, (px + qx) / 2, (py + qy) / 2);
-          if (vol) volume.quadraticCurveTo(px, py, (px + qx) / 2, (py + qy) / 2);
-          px = qx; py = qy;
-        }
-        path.lineTo(px, py);
-        if (vol) volume.lineTo(px, py);
+      const guides = [];
+      const stride = cand.length / GUIDES;
+      for (let i = 0; i < GUIDES; i++) {
+        const d = cand[Math.floor(i * stride)];
+        guides.push({
+          dir: d,
+          side: Math.abs(d.x) < 0.04 ? (rnd() < 0.5 ? -1 : 1) : Math.sign(d.x),
+          lengthF: 0.85 + rnd() * 0.3,
+          stiffness: 0.5 + rnd() * 0.5,
+          phase: rnd() * Math.PI * 2,
+          p: new Float32Array(POINTS * 3), q: new Float32Array(POINTS * 3), init: false
+        });
       }
-      strokeHair(ctx, st.palette, paths, volume, width, width * 2.5);
-    }
-
-    function strokeHair(ctx, palette, paths, body, width, bodyWidth) {
-      const alpha = ctx.globalAlpha;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      // A solid underlayer in the mid shades gives the hair its thickness, so it never looks
-      // see-through; the strands on top give it texture and cover its edges.
-      ctx.globalAlpha = alpha * 0.85;
-      ctx.strokeStyle = palette[1];
-      ctx.lineWidth = bodyWidth;
-      ctx.stroke(body);
-      ctx.globalAlpha = alpha * 0.7;
-      ctx.strokeStyle = palette[2];
-      ctx.lineWidth = bodyWidth * 0.5;
-      ctx.stroke(body);
-      // Then the individual strands, darkest first so highlights sit on top.
-      ctx.globalAlpha = alpha * 0.9;
-      paths.forEach((p, i) => {
-        ctx.strokeStyle = palette[i];
-        ctx.lineWidth = i === 5 ? width * 0.7 : width;
-        ctx.stroke(p);
-      });
-      ctx.globalAlpha = alpha;
-    }
-
-    // Redraw a person's cached scalp image at their current head size and hair length.
-    function buildSprite(t, count, now) {
-      const st = t.hair, S0 = t.m.head.size;
-      const reach = 1.5; // face heights from the head's centre; the scalp never goes further
-      const q = Math.min(MOBILE ? 0.75 : 1, MAX_SPRITE / (S0 * 2 * reach));
-      const S = S0 * q;
-      const sprite = st.sprite || { canvas: document.createElement('canvas') };
-      const c = sprite.canvas;
-      c.width = c.height = Math.ceil(2 * reach * S);
-      const ctx = c.getContext('2d');
-      ctx.setTransform(1, 0, 0, 1, reach * S, reach * S);
-      ctx.globalAlpha = 1;
-      buildScalp(ctx, st, S, count);
-      Object.assign(sprite, { o: reach * S, S, length: hair.length, builtAt: now });
-      st.sprite = sprite;
-    }
-
-    // Head-local pixels to screen pixels.
-    function toScreen(head, x, y) {
-      return [head.cx - x * head.uy - y * head.ux, head.cy + x * head.ux - y * head.uy];
-    }
-
-    // Is (x, y) inside the polygon? pts is a flat [x0, y0, x1, y1, ...] array.
-    function insidePolygon(pts, x, y) {
-      let inside = false;
-      for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
-        const xi = pts[i], yi = pts[i + 1], xj = pts[j], yj = pts[j + 1];
-        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      const strands = [];
+      for (let n = 0; n < STRANDS; n++) {
+        const gi = Math.floor(rnd() * GUIDES), g = guides[gi];
+        // A root near its guide's, jittered over the scalp.
+        const d = norm(v3(g.dir.x + (rnd() - 0.5) * 0.12, g.dir.y + (rnd() - 0.5) * 0.12, g.dir.z + (rnd() - 0.5) * 0.12));
+        strands.push({
+          gi, dir: inHair(d, front) ? d : g.dir,
+          lengthF: g.lengthF * (0.8 + rnd() * 0.25),
+          shade: Math.min(5, Math.floor(Math.pow(rnd(), 1.3) * 6)),
+          curl: (0.004 + rnd() * 0.012), curlFreq: 4 + rnd() * 8, phase: rnd() * Math.PI * 2,
+          spread: (rnd() - 0.5) * 2
+        });
       }
-      return inside;
+      return { guides, strands, front };
     }
 
-    // The nearest point on the polygon's edge to (x, y).
-    function nearestOnPolygon(pts, x, y) {
-      let best = Infinity, bx = x, by = y;
-      for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
-        const ax = pts[j], ay = pts[j + 1], ex = pts[i] - ax, ey = pts[i + 1] - ay;
-        const f = Math.max(0, Math.min(1, ((x - ax) * ex + (y - ay) * ey) / (ex * ex + ey * ey || 1)));
-        const cx = ax + ex * f, cy = ay + ey * f, d = (x - cx) ** 2 + (y - cy) ** 2;
-        if (d < best) { best = d; bx = cx; by = cy; }
-      }
-      return [bx, by];
+    // A root on the surface (slightly outside it), and the way the hair leaves it: lying along
+    // the scalp, away from a centre parting and down, and more straight down at the back.
+    function rootAt(hf, shape, d, side, lift = 1.012) {
+      const { a, b, c } = shape;
+      const p = toWorld(hf, d.x * a * lift, d.y * b * lift, d.z * c * lift);
+      const n = norm(v3(d.x / a, d.y / b, d.z / c));
+      const v = v3(side * 0.8 * (1 - Math.max(0, -d.z) * 0.7), -0.75, -0.35);
+      const tl = norm(sub(v, scale3(n, dot(v, n))));
+      const tw = norm(add3(scale3(hf.R, tl.x), scale3(hf.U, tl.y), scale3(hf.F, tl.z)));
+      return { p, t: tw };
     }
 
-    // Step the guide strands: each is pinned where it leaves the scalp, carries momentum and
-    // falls under gravity. It's kept outside the person's own head-and-hair outline, so it
-    // lies close over the top of the head and slides down round it, then hangs straight
-    // down from the widest point, and outside their face, so it drapes along cheeks and jaw.
-    function simulate(t, dt, time) {
-      const st = t.hair, head = t.m.head, S = head.size;
-      const total = hair.length * S;
-      const rx = -head.uy, ry = head.ux; // head right, in screen space
-      if (!st.guides) st.guides = locks.map(() => ({ p: new Float32Array((NODES + 1) * 2), q: new Float32Array((NODES + 1) * 2), free: 0, init: false }));
-      // If the head jumped (tracking caught up, or a new person took over), start fresh.
-      const jumped = !st.last || Math.hypot(head.cx - st.last[0], head.cy - st.last[1]) > S * 0.5;
-      st.last = [head.cx, head.cy];
-
-      // The face outline, pushed out a touch so hair rests just beside the skin.
-      const oval = new Float32Array(FACE_OVAL.length * 2);
-      let mx = 0, my = 0;
-      FACE_OVAL.forEach(j => { mx += t.face[j].x; my += t.face[j].y; });
-      mx /= FACE_OVAL.length; my /= FACE_OVAL.length;
-      FACE_OVAL.forEach((j, i) => {
-        oval[i * 2] = mx + (t.face[j].x - mx) * 1.04;
-        oval[i * 2 + 1] = my + (t.face[j].y - my) * 1.04;
-      });
-      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-      for (let i = 0; i < oval.length; i += 2) {
-        x0 = Math.min(x0, oval[i]); x1 = Math.max(x1, oval[i]);
-        y0 = Math.min(y0, oval[i + 1]); y1 = Math.max(y1, oval[i + 1]);
-      }
-
-      const damping = Math.exp(-dt * 3);
-      const g = GRAVITY * S * dt * dt;
+    // Step one person's guide strands.
+    function simulate(t, hf, shape, dt, time) {
+      const S = hf.S, total = hair.length * S;
+      const { a, b, c } = shape;
+      const jumped = !t.gfx.last || Math.hypot(hf.O.x - t.gfx.last.x, hf.O.y - t.gfx.last.y) > S * 0.5;
+      t.gfx.last = hf.O;
+      const damping = Math.exp(-dt * 3), g = GRAVITY * S * dt * dt;
       const segs = new Float32Array(NODES);
+      const m = 1.015; // guides rest just outside the head
+      // In front of the face, from the brow to the chin, hair can't hang: it's pushed out to the
+      // sides, so it parts and falls either side of the face, framing it.
+      const browY = toLocal(hf, t.face[FOREHEAD]).y, chinY = toLocal(hf, t.face[CHIN]).y;
+      const faceHalf = hf.width * 0.47;
 
-      locks.forEach((L, li) => {
-        const G = st.guides[li];
-        const start = hangStart(st, L.angle, 0.5, L.back);
-        const free = total * L.lengthF - start.used * S;
-        G.free = free;
-        if (free <= S * 0.01) { G.init = false; return; }
-        for (let i = 0; i < NODES; i++) segs[i] = free * SEG_WEIGHTS[i];
-        const [ox, oy] = outward(L.angle), [tx, ty] = alongScalp(L.angle, L.side);
-        const [ax, ay] = toScreen(head, ox * start.r * S, oy * start.r * S);
-        // Leaving the scalp along its surface, away from the parting; back-of-head hair
-        // just hangs straight down.
-        const dx = L.back ? -head.ux : tx * rx - ty * head.ux, dy = L.back ? -head.uy : tx * ry - ty * head.uy;
+      for (const G of t.gfx.roots.guides) {
+        const len = total * G.lengthF;
+        G.len = len;
+        if (len < S * 0.01) { G.init = false; continue; }
+        for (let i = 0; i < NODES; i++) segs[i] = len * SEG_WEIGHTS[i];
+        const { p: r, t: tw } = rootAt(hf, shape, G.dir, G.side);
         const p = G.p, q = G.q;
-
         if (!G.init || jumped) {
           // Start draped: along the scalp at first, turning downwards.
-          let x = ax, y = ay;
-          for (let i = 0; i <= NODES; i++) {
-            p[i * 2] = q[i * 2] = x; p[i * 2 + 1] = q[i * 2 + 1] = y;
+          let x = r.x, y = r.y, z = r.z;
+          for (let i = 0; i < POINTS; i++) {
+            p[i * 3] = q[i * 3] = x; p[i * 3 + 1] = q[i * 3 + 1] = y; p[i * 3 + 2] = q[i * 3 + 2] = z;
             if (i === NODES) break;
-            const f = Math.min(1, i / 4), vx = dx * (1 - f), vy = dy * (1 - f) + f, vl = Math.hypot(vx, vy) || 1;
-            x += vx / vl * segs[i]; y += vy / vl * segs[i];
+            const f = Math.min(1, i / 4);
+            const dir = norm(v3(tw.x * (1 - f), tw.y * (1 - f) + f, tw.z * (1 - f)));
+            x += dir.x * segs[i]; y += dir.y * segs[i]; z += dir.z * segs[i];
           }
           G.init = true;
         }
-        p[0] = q[0] = ax; p[1] = q[1] = ay;
+        p[0] = q[0] = r.x; p[1] = q[1] = r.y; p[2] = q[2] = r.z;
 
-        // Momentum, gravity and a faint breeze.
-        const breeze = Math.sin(time * 0.9 + L.phase) * 0.12 * S * dt * dt;
-        for (let i = 1; i <= NODES; i++) {
-          const k = i * 2, vx = (p[k] - q[k]) * damping, vy = (p[k + 1] - q[k + 1]) * damping;
-          q[k] = p[k]; q[k + 1] = p[k + 1];
-          p[k] += vx + breeze * i / NODES;
-          p[k + 1] += vy + g;
+        // Momentum, gravity (down the screen) and a faint breeze.
+        const breeze = Math.sin(time * 0.9 + G.phase) * 0.12 * S * dt * dt;
+        for (let i = 1; i < POINTS; i++) {
+          const k = i * 3;
+          const vx = (p[k] - q[k]) * damping, vy = (p[k + 1] - q[k + 1]) * damping, vz = (p[k + 2] - q[k + 2]) * damping;
+          q[k] = p[k]; q[k + 1] = p[k + 1]; q[k + 2] = p[k + 2];
+          p[k] += vx + breeze * i / NODES; p[k + 1] += vy + g; p[k + 2] += vz;
         }
 
         for (let it = 0; it < ITERATIONS; it++) {
           // Keep each segment its proper length.
-          for (let i = 1; i <= NODES; i++) {
-            const k = i * 2, j = k - 2;
-            const ex = p[k] - p[j], ey = p[k + 1] - p[j + 1], d = Math.hypot(ex, ey) || 1;
-            const diff = (d - segs[i - 1]) / d;
-            if (i === 1) { p[k] -= ex * diff; p[k + 1] -= ey * diff; }
+          for (let i = 1; i < POINTS; i++) {
+            const k = i * 3, j = k - 3;
+            const ex = p[k] - p[j], ey = p[k + 1] - p[j + 1], ez = p[k + 2] - p[j + 2];
+            const d = Math.hypot(ex, ey, ez) || 1, diff = (d - segs[i - 1]) / d;
+            if (i === 1) { p[k] -= ex * diff; p[k + 1] -= ey * diff; p[k + 2] -= ez * diff; }
             else {
-              p[k] -= ex * diff * 0.5; p[k + 1] -= ey * diff * 0.5;
-              p[j] += ex * diff * 0.5; p[j + 1] += ey * diff * 0.5;
+              p[k] -= ex * diff * 0.5; p[k + 1] -= ey * diff * 0.5; p[k + 2] -= ez * diff * 0.5;
+              p[j] += ex * diff * 0.5; p[j + 1] += ey * diff * 0.5; p[j + 2] += ez * diff * 0.5;
             }
           }
           // The first short segment leaves along the scalp, so the root lies flat.
-          p[2] += (ax + dx * segs[0] - p[2]) * 0.7 * L.stiffness;
-          p[3] += (ay + dy * segs[0] - p[3]) * 0.7 * L.stiffness;
-
-          // Back-of-head hair hangs behind the head and neck, so nothing collides with it.
-          if (L.back) continue;
-          for (let i = 1; i <= NODES; i++) {
-            const k = i * 2;
-            // Outside their own head-and-hair outline, sitting just on top of it...
-            const hx = ((p[k] - head.cx) * rx + (p[k + 1] - head.cy) * ry) / S;
-            const hy = ((p[k] - head.cx) * head.ux + (p[k + 1] - head.cy) * head.uy) / S;
-            const ang = Math.atan2(hx, hy);
-            if (Math.abs(ang) < MAX_ANGLE) {
-              const r = Math.hypot(hx, hy), min = sampleBins(st.outline, ang) + 0.015;
-              if (r < min && r > 0) {
-                const f = (min / r - 1) * S;
-                p[k] += (hx * rx + hy * head.ux) * f;
-                p[k + 1] += (hx * ry + hy * head.uy) * f;
-              }
-            }
-            // ...and out of the face, so it drapes along the cheeks and jaw.
-            if (p[k] > x0 && p[k] < x1 && p[k + 1] > y0 && p[k + 1] < y1 && insidePolygon(oval, p[k], p[k + 1])) {
-              const [nx, ny] = nearestOnPolygon(oval, p[k], p[k + 1]);
-              p[k] = nx; p[k + 1] = ny;
+          const k1 = 0.7 * G.stiffness;
+          p[3] += (r.x + tw.x * segs[0] - p[3]) * k1;
+          p[4] += (r.y + tw.y * segs[0] - p[4]) * k1;
+          p[5] += (r.z + tw.z * segs[0] - p[5]) * k1;
+          // Outside the head: push any point inside the ellipsoid back out to its surface.
+          for (let i = 1; i < POINTS; i++) {
+            const k = i * 3;
+            const dx = p[k] - hf.O.x, dy = p[k + 1] - hf.O.y, dz = p[k + 2] - hf.O.z;
+            const lx = dx * hf.R.x + dy * hf.R.y + dz * hf.R.z;
+            const ly = dx * hf.U.x + dy * hf.U.y + dz * hf.U.z;
+            const lz = dx * hf.F.x + dy * hf.F.y + dz * hf.F.z;
+            const e = (lx / a) ** 2 + (ly / b) ** 2 + (lz / c) ** 2;
+            if (e < m * m) {
+              const f = m / Math.sqrt(e) - 1;
+              p[k] += (hf.R.x * lx + hf.U.x * ly + hf.F.x * lz) * f;
+              p[k + 1] += (hf.R.y * lx + hf.U.y * ly + hf.F.y * lz) * f;
+              p[k + 2] += (hf.R.z * lx + hf.U.z * ly + hf.F.z * lz) * f;
+            } else if (lz > 0.05 * S && ly < browY + 0.05 * S && ly > chinY - 0.05 * S && Math.abs(lx) < faceHalf) {
+              const out = (Math.abs(lx) > 0.05 * S ? Math.sign(lx) : G.side) * faceHalf - lx;
+              p[k] += hf.R.x * out; p[k + 1] += hf.R.y * out; p[k + 2] += hf.R.z * out;
             }
           }
         }
-      });
+      }
     }
 
-    // Draw the free-hanging part of the front or back locks, each strand following its guide.
-    function drawFreeHair(t, count, front) {
-      const st = t.hair, head = t.m.head, S = head.size;
-      const total = hair.length * S;
-      const width = Math.max(0.9, S * 0.0042);
-      const paths = st.palette.map(() => new Path2D());
-      const body = new Path2D();
-      const pts = new Float32Array((NODES + 1) * 2);
+    // ---------- Three.js scene ----------
+    const renderer = new THREE.WebGLRenderer({ canvas: hairCanvas, alpha: true, antialias: !MOBILE, premultipliedAlpha: true });
+    renderer.setPixelRatio(1);
+    renderer.setClearColor(0x000000, 0);
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace; // colours are used exactly as sampled
+    const scene = new THREE.Scene();
+    // Orthographic and in video pixels, so 3D points land exactly on the landmarks they came
+    // from; depth only decides what is in front of what.
+    const camera = new THREE.OrthographicCamera(0, 1, 0, 1, -1e5, 1e5);
+    const occluderMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+    const LIGHT = norm(v3(0.3, -0.8, 0.55)); // from above and in front (screen y points down)
+    const HALF = norm(add3(LIGHT, v3(0, 0, 1)));
 
-      // The solid body follows the guides but stops short of the tips, so the ends stay wispy.
-      st.guides.forEach((G, li) => {
-        if (G.free <= S * 0.01 || locks[li].front !== front) return;
-        body.moveTo(G.p[0], G.p[1]);
-        for (let i = 1; i < NODES; i++) body.lineTo(G.p[i * 2], G.p[i * 2 + 1]);
-      });
-
-      for (let n = 0; n < count; n++) {
-        const s = strands[n], L = locks[s.li], G = st.guides[s.li];
-        if (G.free <= S * 0.01 || L.front !== front) continue;
-        const start = hangStart(st, s.angle, s.depth, L.back);
-        const free = total * s.lengthF - start.used * S;
-        if (free <= 0) continue;
-        const ratio = Math.min(1, free / G.free);
-        // Where this strand starts hanging, relative to its guide.
-        const [ox, oy] = outward(s.angle);
-        const [ex, ey] = toScreen(head, ox * start.r * S, oy * start.r * S);
-        const rx0 = ex - G.p[0], ry0 = ey - G.p[1];
-        if (Math.hypot(rx0, ry0) > S * 0.12) continue; // too far from its guide to follow it
-        for (let j = 0; j <= NODES; j++) {
-          // Walk along the guide; a shorter strand stops partway.
-          const u = j * ratio, i = Math.min(NODES - 1, Math.floor(u)), f = u - i;
-          const ax = G.p[i * 2], ay = G.p[i * 2 + 1], bx = G.p[i * 2 + 2], by = G.p[i * 2 + 3];
-          const dx = bx - ax, dy = by - ay, dl = Math.hypot(dx, dy) || 1;
-          const along = j / NODES;
-          // Spread around the guide and curl, both growing towards the tip.
-          const side = s.offset * S * 0.025 * along + Math.sin(along * L.curlFreq + L.phase) * L.curlAmp * S * along;
-          pts[j * 2] = ax + dx * f + rx0 * (1 - along * 0.6) - dy / dl * side;
-          pts[j * 2 + 1] = ay + dy * f + ry0 * (1 - along * 0.6) + dx / dl * side;
+    // A mesh of camera-facing ribbons, one per strand, rebuilt from points every frame.
+    function ribbonMesh(strands, points, material) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(strands * points * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(strands * points * 2 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+      const idx = new Uint32Array(strands * (points - 1) * 6);
+      let k = 0;
+      for (let s = 0; s < strands; s++) {
+        for (let j = 0; j < points - 1; j++) {
+          const v = (s * points + j) * 2;
+          idx.set([v, v + 1, v + 2, v + 1, v + 3, v + 2], k); k += 6;
         }
-        const path = paths[s.shade];
-        path.moveTo(pts[0], pts[1]);
-        for (let j = 1; j < NODES; j++) {
-          path.quadraticCurveTo(pts[j * 2], pts[j * 2 + 1], (pts[j * 2] + pts[j * 2 + 2]) / 2, (pts[j * 2 + 1] + pts[j * 2 + 3]) / 2);
-        }
-        path.lineTo(pts[NODES * 2], pts[NODES * 2 + 1]);
       }
-      strokeHair(hairCtx, st.palette, paths, body, width, S * 0.028);
+      geo.setIndex(new THREE.BufferAttribute(idx, 1));
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.frustumCulled = false;
+      return mesh;
     }
 
-    // Hide whatever has been drawn behind a person's neck, shoulders, face and forehead.
-    function cutBehindBody(t) {
-      const st = t.hair, head = t.m.head, S = head.size;
-      const alpha = hairCtx.globalAlpha;
-      hairCtx.globalAlpha = 1;
-      hairCtx.globalCompositeOperation = 'destination-out';
-      hairCtx.beginPath();
-      for (let c = 0; c < SHOULDER_BINS; c++) {
-        const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
-        const [x, y] = toScreen(head, hx * S, st.shoulders[c] * S);
-        c ? hairCtx.lineTo(x, y) : hairCtx.moveTo(x, y);
+    const parseRgb = str => (str.match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(n => n / 255);
+    const hexRgb = str => str.startsWith('#') ? [1, 3, 5].map(i => parseInt(str.slice(i, i + 2), 16) / 255) : parseRgb(str);
+
+    // Write one strand's ribbon: pts is [x, y, z, ...] for `points` points. Shaded for hair:
+    // brightest where the strand runs across the light, with a soft highlight, darker at the
+    // roots and towards the back of the head.
+    function writeRibbon(pos, col, s, pts, points, halfWidth, base, depthShade) {
+      let v = s * points * 2 * 3;
+      for (let j = 0; j < points; j++) {
+        const k = j * 3, n = j < points - 1 ? k + 3 : k, pk = j < points - 1 ? k : k - 3;
+        let tx = pts[n] - pts[pk], ty = pts[n + 1] - pts[pk + 1], tz = pts[n + 2] - pts[pk + 2];
+        const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+        const sl = Math.hypot(tx, ty) || 1, u = j / (points - 1);
+        const w = halfWidth * (1 - 0.85 * u * u);
+        const sx = -ty / sl * w, sy = tx / sl * w;
+        const tL = tx * LIGHT.x + ty * LIGHT.y + tz * LIGHT.z, tH = tx * HALF.x + ty * HALF.y + tz * HALF.z;
+        const diffuse = Math.sqrt(Math.max(0, 1 - tL * tL));
+        const spec = Math.pow(Math.sqrt(Math.max(0, 1 - tH * tH)), 60);
+        const shade = (0.35 + 0.75 * diffuse) * (0.6 + 0.4 * Math.min(1, j / 3)) * depthShade[j];
+        const r = base[0] * shade + spec * 0.22, g = base[1] * shade + spec * 0.2, b = base[2] * shade + spec * 0.18;
+        pos[v] = pts[k] + sx; pos[v + 1] = pts[k + 1] + sy; pos[v + 2] = pts[k + 2];
+        pos[v + 3] = pts[k] - sx; pos[v + 4] = pts[k + 1] - sy; pos[v + 5] = pts[k + 2];
+        col[v] = col[v + 3] = r; col[v + 1] = col[v + 4] = g; col[v + 2] = col[v + 5] = b;
+        v += 6;
       }
-      for (const [x, y] of [[3, st.shoulders[SHOULDER_BINS - 1]], [3, 8], [-3, 8], [-3, st.shoulders[0]]]) {
-        hairCtx.lineTo(...toScreen(head, x * S, y * S));
-      }
-      hairCtx.closePath();
-      hairCtx.fill();
-      // The back-of-head hair is also behind the face and forehead, up to where their hair starts.
-      hairCtx.beginPath();
-      for (let i = 0; i < BINS; i++) {
-        const [ox, oy] = outward(binAngle(i)), r = st.hairline[i] * S;
-        const [x, y] = toScreen(head, ox * r, oy * r);
-        i ? hairCtx.lineTo(x, y) : hairCtx.moveTo(x, y);
-      }
-      hairCtx.closePath();
-      hairCtx.fill();
-      hairCtx.beginPath();
-      FACE_OVAL.forEach((j, i) => i ? hairCtx.lineTo(t.face[j].x, t.face[j].y) : hairCtx.moveTo(t.face[j].x, t.face[j].y));
-      hairCtx.closePath();
-      hairCtx.fill();
-      hairCtx.globalCompositeOperation = 'source-over';
-      hairCtx.globalAlpha = alpha;
     }
 
-    function drawHair(w, h, now, dt) {
-      const cw = Math.round(w * HAIR_SCALE), ch = Math.round(h * HAIR_SCALE);
-      if (hairCanvas.width !== cw || hairCanvas.height !== ch) {
-        hairCanvas.width = cw;
-        hairCanvas.height = ch;
-      }
-      hairCtx.setTransform(1, 0, 0, 1, 0, 0);
-      hairCtx.clearRect(0, 0, cw, ch);
-      hair.length += (hair.target - hair.length) * 0.06;
-      if (Math.abs(hair.target - hair.length) < 0.002) hair.length = hair.target;
-      const people = tracks.filter(t => t.face && t.hair.ready && t.fade > 0.5);
-      if (hair.length < 0.005 || !people.length) return;
+    // The solid layer under the strands over the hair-covered part of the head, so the scalp
+    // and their real hair never show through the new hair.
+    const capVertex = `
+      varying vec3 vDir;
+      void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+    const capFragment = `
+      uniform float front; uniform vec3 colour; varying vec3 vDir;
+      void main() {
+        vec3 d = normalize(vDir);
+        float line = d.z >= 0.0 ? 0.2 + (front - 0.2) * min(1.0, d.z / 0.45) : 0.2 + (-0.45 - 0.2) * -d.z;
+        if (d.y < line) discard;
+        gl_FragColor = vec4(colour * (0.55 + 0.45 * clamp(d.y * 0.6 + d.z * 0.5, 0.0, 1.0)), 1.0);
+      }`;
 
-      // Redraw at most one person's scalp image per frame, and only when it has changed.
-      const count = Math.floor(STRAND_BUDGET / people.length);
-      const stale = people.filter(t => {
-        const sp = t.hair.sprite;
-        if (!sp) return true;
-        const age = now - sp.builtAt;
-        const growing = Math.abs(sp.length - hair.length) > 0.004;
-        return (growing && age > GROWING_REBUILD_MS) || (t.hair.updatedAt > sp.builtAt && age > REBUILD_MS);
-      });
-      if (stale.length) {
-        stale.sort((a, b) => (a.hair.sprite?.builtAt ?? 0) - (b.hair.sprite?.builtAt ?? 0));
-        buildSprite(stale[0], count, now);
-      }
+    // Each person's 3D objects: occluders (face, head, body) that only write depth, the cap, the
+    // hair ribbons and the beard ribbons.
+    function makeGfx(t) {
+      const group = new THREE.Group();
+      const faceGeo = new THREE.BufferGeometry();
+      faceGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array((FACE_OVAL.length + 1) * 3), 3));
+      faceGeo.setIndex(FACE_OVAL.flatMap((_, i) => [FACE_OVAL.length, i, (i + 1) % FACE_OVAL.length]));
+      const face = new THREE.Mesh(faceGeo, occluderMaterial);
+      const skull = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), occluderMaterial);
+      const bodyGeo = new THREE.BufferGeometry();
+      bodyGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SHOULDER_BINS * 2 * 3), 3));
+      const bodyIdx = [];
+      for (let c = 0; c < SHOULDER_BINS - 1; c++) bodyIdx.push(c * 2, c * 2 + 1, c * 2 + 2, c * 2 + 1, c * 2 + 3, c * 2 + 2);
+      bodyGeo.setIndex(bodyIdx);
+      const body = new THREE.Mesh(bodyGeo, occluderMaterial);
+      for (const o of [face, skull, body]) { o.renderOrder = -1; o.frustumCulled = false; }
+      skull.matrixAutoUpdate = false;
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), new THREE.ShaderMaterial({
+        uniforms: { front: { value: 0.6 }, colour: { value: new THREE.Color() } },
+        vertexShader: capVertex, fragmentShader: capFragment, side: THREE.DoubleSide
+      }));
+      cap.matrixAutoUpdate = false; cap.frustumCulled = false;
+      const hairMesh = ribbonMesh(STRANDS, POINTS, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      const beardMesh = ribbonMesh(BEARD_STRANDS.length, 5, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+      group.add(face, skull, body, cap, hairMesh, beardMesh);
+      scene.add(group);
+      t.gfx = { group, face, skull, body, cap, hairMesh, beardMesh, roots: null, last: null, pts: new Float32Array(POINTS * 3), shade: new Float32Array(POINTS) };
+    }
 
-      for (const t of people) {
-        simulate(t, dt, now / 1000);
-        const sp = t.hair.sprite, head = t.m.head;
-        hairCtx.globalAlpha = t.fade;
-        // Hair falling behind the shoulders, hidden by the body; then the locks falling in
-        // front; then the scalp on top so the roots look continuous.
-        hairCtx.setTransform(HAIR_SCALE, 0, 0, HAIR_SCALE, 0, 0);
-        drawFreeHair(t, count, false);
-        cutBehindBody(t);
-        drawFreeHair(t, count, true);
-        if (sp) {
-          const k = head.size / sp.S * HAIR_SCALE;
-          hairCtx.globalAlpha = t.fade;
-          hairCtx.setTransform(-head.uy * k, head.ux * k, -head.ux * k, -head.uy * k, head.cx * HAIR_SCALE, head.cy * HAIR_SCALE);
-          hairCtx.drawImage(sp.canvas, -sp.o, -sp.o);
+    function disposeGfx(t) {
+      if (!t.gfx) return;
+      scene.remove(t.gfx.group);
+      t.gfx.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== occluderMaterial) o.material.dispose(); });
+      t.gfx = null;
+    }
+
+    const ellipsoidMatrix = (m, hf, a, b, c) => m.set(
+      hf.R.x * a, hf.U.x * b, hf.F.x * c, hf.O.x,
+      hf.R.y * a, hf.U.y * b, hf.F.y * c, hf.O.y,
+      hf.R.z * a, hf.U.z * b, hf.F.z * c, hf.O.z,
+      0, 0, 0, 1);
+
+    function updatePerson(t, count, dt, time) {
+      if (!t.gfx) makeGfx(t);
+      const G = t.gfx, hf = headFrame(t.face), S = hf.S;
+      const showHair = t.hair.ready && hair.length > 0.005;
+      G.group.visible = t.fade > 0.5;
+
+      // Occluders: the face as a fan of its outline (with real depth), the head, and the body
+      // from the neck and shoulders down, standing just in front of the middle of the head so
+      // hair falling behind the shoulders is hidden and locks falling in front are not.
+      const fp = G.face.geometry.attributes.position;
+      FACE_OVAL.forEach((j, i) => fp.setXYZ(i, t.face[j].x, t.face[j].y, t.face[j].z));
+      const tip = t.face[NOSE_TIP];
+      fp.setXYZ(FACE_OVAL.length, tip.x, tip.y, tip.z);
+      fp.needsUpdate = true;
+
+      if (!showHair) { G.skull.visible = G.cap.visible = G.hairMesh.visible = G.body.visible = false; }
+      else {
+        const shape = fitShape(t, hf);
+        if (!G.roots || Math.abs(G.roots.front - shape.front) > 0.08) G.roots = makeRoots(shape.front);
+        G.skull.visible = G.cap.visible = G.hairMesh.visible = G.body.visible = true;
+        ellipsoidMatrix(G.skull.matrix, hf, shape.a * 0.985, shape.b * 0.985, shape.c * 0.985);
+        ellipsoidMatrix(G.cap.matrix, hf, shape.a * 1.006, shape.b * 1.006, shape.c * 1.006);
+        G.cap.material.uniforms.front.value = shape.front;
+        const pal = t.hair.palette.map(hexRgb);
+        G.cap.material.uniforms.colour.value.setRGB(...pal[0]);
+        // The cap only covers the scalp once there's enough hair to lie on it.
+        G.cap.visible = hair.length > 0.12;
+
+        const head = t.m.head, bp = G.body.geometry.attributes.position, bz = hf.O.z + 0.05 * S;
+        for (let c = 0; c < SHOULDER_BINS; c++) {
+          const hx = -2 + 4 * c / (SHOULDER_BINS - 1);
+          const [x, y] = toScreen(head, hx * head.size, t.hair.shoulders[c] * head.size);
+          const [x2, y2] = toScreen(head, hx * head.size, 10 * head.size);
+          bp.setXYZ(c * 2, x, y, bz); bp.setXYZ(c * 2 + 1, x2, y2, bz);
         }
-      }
-      hairCtx.globalAlpha = 1;
+        bp.needsUpdate = true;
 
-      // Tuck the hair behind everyone's faces.
-      hairCtx.setTransform(HAIR_SCALE, 0, 0, HAIR_SCALE, 0, 0);
-      hairCtx.globalCompositeOperation = 'destination-out';
-      hairCtx.beginPath();
-      for (const t of people) {
-        FACE_OVAL.forEach((j, i) => i ? hairCtx.lineTo(t.face[j].x, t.face[j].y) : hairCtx.moveTo(t.face[j].x, t.face[j].y));
-        hairCtx.closePath();
+        simulate(t, hf, shape, dt, time);
+
+        // Drawn strands follow their guide, offset to their own root and fanning out a little.
+        const pos = G.hairMesh.geometry.attributes.position.array, col = G.hairMesh.geometry.attributes.color.array;
+        const pts = G.pts, depthShade = G.shade, halfWidth = Math.max(0.6, S * 0.0026);
+        let drawn = 0;
+        const roots = G.roots;
+        for (let n = 0; n < count; n++) {
+          const s = roots.strands[n], g = roots.guides[s.gi];
+          if (!g.init || g.len < S * 0.01) continue;
+          // Offset from the guide's root to this strand's, over the head's surface.
+          const la = (s.dir.x - g.dir.x) * shape.a * 1.012, lb = (s.dir.y - g.dir.y) * shape.b * 1.012, lc = (s.dir.z - g.dir.z) * shape.c * 1.012;
+          const ox = hf.R.x * la + hf.U.x * lb + hf.F.x * lc;
+          const oy = hf.R.y * la + hf.U.y * lb + hf.F.y * lc;
+          const oz = hf.R.z * la + hf.U.z * lb + hf.F.z * lc;
+          const ratio = Math.min(1, s.lengthF / g.lengthF);
+          for (let j = 0; j < POINTS; j++) {
+            const u = j * ratio, i = Math.min(NODES - 1, Math.floor(u)), f = u - i, k = i * 3;
+            const along = j / NODES, keep = 1 - 0.5 * along;
+            const ax = g.p[k] + (g.p[k + 3] - g.p[k]) * f, ay = g.p[k + 1] + (g.p[k + 4] - g.p[k + 1]) * f, az = g.p[k + 2] + (g.p[k + 5] - g.p[k + 2]) * f;
+            const dx = g.p[k + 3] - g.p[k], dy = g.p[k + 4] - g.p[k + 1], dl = Math.hypot(dx, dy) || 1;
+            // Spread and curl sideways (on screen), growing towards the tip.
+            const side = (s.spread * 0.02 + Math.sin(along * s.curlFreq + s.phase) * s.curl) * S * along;
+            pts[j * 3] = ax + ox * keep - dy / dl * side;
+            pts[j * 3 + 1] = ay + oy * keep + dx / dl * side;
+            pts[j * 3 + 2] = az + oz * keep;
+            // Darker the further round the back of the head the strand is.
+            const lz = (pts[j * 3] - hf.O.x) * hf.F.x + (pts[j * 3 + 1] - hf.O.y) * hf.F.y + (pts[j * 3 + 2] - hf.O.z) * hf.F.z;
+            depthShade[j] = 0.7 + 0.3 * Math.max(0, Math.min(1, (lz / shape.c + 1) / 2));
+          }
+          writeRibbon(pos, col, drawn++, pts, POINTS, halfWidth, pal[s.shade], depthShade);
+        }
+        G.hairMesh.geometry.setDrawRange(0, drawn * (POINTS - 1) * 6);
+        G.hairMesh.geometry.attributes.position.needsUpdate = true;
+        G.hairMesh.geometry.attributes.color.needsUpdate = true;
       }
-      hairCtx.fill();
-      hairCtx.globalCompositeOperation = 'source-over';
-      hairCtx.setTransform(1, 0, 0, 1, 0, 0);
+
+      drawBeard(t, hf);
     }
 
     // ---------- Beard ----------
     // Short strands rooted between the jaw and the mouth (with sideburns at the ears), plus a
-    // moustache from the upper lip, in each person's own colour from their brows and chin.
+    // moustache from the upper lip, in 3D on the face, in each person's own colour.
     const JAW = [234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288, 361, 323, 454];
     const UPPER_LIP = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
     const LIPS = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291, 409, 270, 269, 267, 0, 37, 39, 40, 185];
@@ -1023,7 +1095,7 @@
     const BEARD_LENGTH = 0.16;       // full length, in face heights
     const beard = { length: 0, target: 0, sampler: document.createElement('canvas') };
 
-    const beardStrands = (() => {
+    const BEARD_STRANDS = (() => {
       const rnd = random(99);
       return Array.from({ length: MOBILE ? 900 : 2400 }, (_, n) => ({
         moustache: n % 6 === 0,
@@ -1036,16 +1108,31 @@
       }));
     })();
 
-    growBeard.addEventListener('change', () => { beard.target = growBeard.checked ? BEARD_LENGTH : 0; });
+    growBeard.addEventListener('click', () => {
+      const on = growBeard.getAttribute('aria-pressed') !== 'true';
+      growBeard.setAttribute('aria-pressed', String(on));
+      growBeard.querySelector('span').textContent = on ? 'Shave beard' : 'Grow beard';
+      beard.target = on ? BEARD_LENGTH : 0;
+    });
 
-    // A point partway along a polyline of landmarks.
+    // A point partway along a polyline of landmarks, in 3D.
     function along(face, idx, f) {
       const u = Math.max(0, Math.min(1, f)) * (idx.length - 1), i = Math.min(idx.length - 2, Math.floor(u)), k = u - i;
       const a = face[idx[i]], b = face[idx[i + 1]];
-      return [a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k];
+      return v3(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
     }
 
-    // Beard colour: the darker pixels of their brows and chin.
+    // Is (x, y) inside the polygon? pts is a flat [x0, y0, x1, y1, ...] array.
+    function insidePolygon(pts, x, y) {
+      let inside = false;
+      for (let i = 0, j = pts.length - 2; i < pts.length; j = i, i += 2) {
+        const xi = pts[i], yi = pts[i + 1], xj = pts[j], yj = pts[j + 1];
+        if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      return inside;
+    }
+
+    // Beard colour when their hair hasn't been measured: the darker pixels of brows and chin.
     function sampleBeardColours(t) {
       const w = video.videoWidth, h = video.videoHeight, k = 4;
       const s = beard.sampler, sw = Math.ceil(w / k), sh = Math.ceil(h / k);
@@ -1062,97 +1149,85 @@
       };
       for (const b of t.m.brows) for (let f = 0; f <= 1; f += 0.05) take(b.ax + (b.bx - b.ax) * f, b.ay + (b.by - b.ay) * f);
       for (let f = 0.3; f <= 0.7; f += 0.02) for (let d = 0.2; d <= 0.6; d += 0.1) {
-        const [jx, jy] = along(t.face, JAW, f), m = t.face[17];
-        take(jx + (m.x - jx) * d, jy + (m.y - jy) * d);
+        const j = along(t.face, JAW, f), m = t.face[17];
+        take(j.x + (m.x - j.x) * d, j.y + (m.y - j.y) * d);
       }
       colours.sort((p, q) => p[0] - q[0]);
       // The darkest samples are the hair; the rest is skin showing through.
       t.beardPalette = paletteFrom(colours.slice(0, Math.ceil(colours.length * 0.35)));
     }
 
-    function drawBeard(now) {
+    function drawBeard(t, hf) {
+      const G = t.gfx, mesh = G.beardMesh;
+      mesh.visible = beard.length > 0.003 && t.fade > 0.5;
+      if (!mesh.visible) return;
+      const now = performance.now();
+      if (!t.beardPalette || (t.beardSampledAt ?? 0) < now - 1000) { sampleBeardColours(t); t.beardSampledAt = now; }
+      // Their own hair colour once it's been measured, since beards usually match it.
+      const pal = (t.hair.ready ? t.hair.palette : t.beardPalette).map(hexRgb);
+      const f = t.face, S = hf.S;
+      const mouth = scale3(add3(f[13], f[14]), 0.5);
+      const lips = new Float32Array(LIPS.flatMap(j => [f[j].x, f[j].y]));
+      const down = scale3(hf.U, -1);
+      // How far from the jaw towards the mouth the beard reaches: a thin sideburn at the ears,
+      // up to just under the lip at the chin.
+      const reach = u => 0.1 + 0.62 * Math.pow(Math.sin(Math.PI * u), 1.5);
+      const pos = mesh.geometry.attributes.position.array, col = mesh.geometry.attributes.color.array;
+      const pts = new Float32Array(5 * 3), shade = new Float32Array(5).fill(1);
+      const lift = scale3(hf.F, 0.05 * S); // sit just in front of the skin
+      let drawn = 0;
+      for (const b of BEARD_STRANDS) {
+        let root, dir, len;
+        if (b.moustache) {
+          const l = along(f, UPPER_LIP, b.t), n = f[NOSE_BASE];
+          const up = 0.1 + 0.55 * (b.d + 0.08) * Math.sin(Math.PI * b.t);
+          root = add3(l, scale3(sub(n, l), up));
+          dir = norm(add3(down, scale3(hf.R, (b.t - 0.5) * 1.6), scale3(hf.F, 0.2)));
+          len = beard.length * S * 0.5 * b.lengthF;
+        } else {
+          const j = along(f, JAW, b.t), k = reach(b.t) * b.d;
+          root = add3(j, scale3(sub(mouth, j), k));
+          if (insidePolygon(lips, root.x, root.y)) continue;
+          // Down the face, a little outwards and forwards.
+          const out = norm(sub(root, hf.O));
+          dir = norm(add3(scale3(down, 0.85), scale3(out, 0.3), scale3(hf.F, 0.25)));
+          len = beard.length * S * b.lengthF * (1 - 0.45 * Math.max(0, b.d));
+        }
+        root = add3(root, lift);
+        for (let k = 0; k < 5; k++) {
+          const u = k / 4;
+          // A slight curl, and the tips droop under their own weight.
+          const c = Math.sin(u * 3 + b.phase) * b.curl * len * 0.3;
+          pts[k * 3] = root.x + dir.x * len * u - dir.y * c;
+          pts[k * 3 + 1] = root.y + dir.y * len * u + dir.x * c + len * 0.25 * u * u;
+          pts[k * 3 + 2] = root.z + dir.z * len * u;
+        }
+        writeRibbon(pos, col, drawn++, pts, 5, Math.max(0.5, S * 0.0018), pal[b.shade], shade);
+      }
+      mesh.geometry.setDrawRange(0, drawn * 4 * 6);
+      mesh.geometry.attributes.position.needsUpdate = true;
+      mesh.geometry.attributes.color.needsUpdate = true;
+    }
+
+    function renderHair(w, h, now, dt) {
+      const cw = Math.round(w * HAIR_SCALE), ch = Math.round(h * HAIR_SCALE);
+      if (hairCanvas.width !== cw || hairCanvas.height !== ch) renderer.setSize(cw, ch, false);
+      if (camera.right !== w || camera.bottom !== h) {
+        camera.right = w; camera.bottom = h;
+        camera.updateProjectionMatrix();
+      }
+      hair.length += (hair.target - hair.length) * 0.06;
+      if (Math.abs(hair.target - hair.length) < 0.002) hair.length = hair.target;
       beard.length += (beard.target - beard.length) * 0.03;
       if (Math.abs(beard.target - beard.length) < 0.001) beard.length = beard.target;
-      if (beard.length < 0.003) return;
-      const grown = beard.length / BEARD_LENGTH;
-      hairCtx.setTransform(HAIR_SCALE, 0, 0, HAIR_SCALE, 0, 0);
-      hairCtx.lineCap = 'round';
 
+      const people = tracks.filter(t => t.face);
+      const count = Math.floor(STRANDS / Math.max(1, people.filter(t => t.hair.ready).length));
       for (const t of tracks) {
-        if (!t.face || t.fade < 0.5) continue;
-        if (!t.beardPalette || (t.beardSampledAt ?? 0) < now - 1000) { sampleBeardColours(t); t.beardSampledAt = now; }
-        // Their own hair colour once it's been measured, since beards usually match it.
-        const f = t.face, head = t.m.head, S = head.size, pal = t.hair.ready ? t.hair.palette : t.beardPalette;
-        const Dx = -head.ux, Dy = -head.uy, Rx = -head.uy, Ry = head.ux; // face down and right
-        const mouth = { x: (f[13].x + f[14].x) / 2, y: (f[13].y + f[14].y) / 2 };
-        let cx = 0, cy = 0;
-        FACE_OVAL.forEach(j => { cx += f[j].x; cy += f[j].y; });
-        cx /= FACE_OVAL.length; cy /= FACE_OVAL.length;
-        const lips = new Float32Array(LIPS.flatMap(j => [f[j].x, f[j].y]));
-        // How far from the jaw towards the mouth the beard reaches: a thin sideburn at the
-        // ears, up to just under the lip at the chin.
-        const reach = u => 0.1 + 0.62 * Math.pow(Math.sin(Math.PI * u), 1.5);
-
-        hairCtx.globalAlpha = t.fade;
-        // A soft base under the strands gives it density.
-        hairCtx.beginPath();
-        for (let i = 0; i <= 20; i++) { const [x, y] = along(f, JAW, i / 20); i ? hairCtx.lineTo(x, y) : hairCtx.moveTo(x, y); }
-        for (let i = 20; i >= 0; i--) {
-          const u = i / 20, [jx, jy] = along(f, JAW, u), k = reach(u) * 0.85;
-          hairCtx.lineTo(jx + (mouth.x - jx) * k, jy + (mouth.y - jy) * k);
-        }
-        hairCtx.closePath();
-        hairCtx.globalAlpha = t.fade * 0.45 * Math.min(1, grown * 1.5);
-        hairCtx.fillStyle = pal[1];
-        hairCtx.fill();
-        // Leave the lips clear.
-        hairCtx.globalCompositeOperation = 'destination-out';
-        hairCtx.globalAlpha = 1;
-        hairCtx.beginPath();
-        LIPS.forEach((j, i) => i ? hairCtx.lineTo(f[j].x, f[j].y) : hairCtx.moveTo(f[j].x, f[j].y));
-        hairCtx.closePath();
-        hairCtx.fill();
-        hairCtx.globalCompositeOperation = 'source-over';
-
-        const paths = pal.map(() => new Path2D());
-        for (const b of beardStrands) {
-          let x, y, dx, dy, len;
-          if (b.moustache) {
-            const [lx, ly] = along(f, UPPER_LIP, b.t), n = f[NOSE_BASE];
-            const up = 0.1 + 0.55 * (b.d + 0.08) * Math.sin(Math.PI * b.t);
-            x = lx + (n.x - lx) * up; y = ly + (n.y - ly) * up;
-            dx = Dx + Rx * (b.t - 0.5) * 1.6; dy = Dy + Ry * (b.t - 0.5) * 1.6;
-            len = beard.length * S * 0.5 * b.lengthF;
-          } else {
-            const [jx, jy] = along(f, JAW, b.t), k = reach(b.t) * b.d;
-            x = jx + (mouth.x - jx) * k; y = jy + (mouth.y - jy) * k;
-            if (insidePolygon(lips, x, y)) continue;
-            // Down the face and a little away from its centre.
-            const ox = x - cx, oy = y - cy, ol = Math.hypot(ox, oy) || 1;
-            dx = Dx + ox / ol * 0.35; dy = Dy + oy / ol * 0.35;
-            len = beard.length * S * b.lengthF * (1 - 0.45 * Math.max(0, b.d));
-          }
-          const dl = Math.hypot(dx, dy); dx /= dl; dy /= dl;
-          const path = paths[b.shade];
-          path.moveTo(x, y);
-          for (let k = 1; k <= 4; k++) {
-            const u = k / 4;
-            // A slight curl, and the tips droop under their own weight.
-            const c = Math.sin(u * 3 + b.phase) * b.curl * len * 0.3;
-            path.lineTo(x + dx * len * u - dy * c + Dx * len * 0.25 * u * u,
-                        y + dy * len * u + dx * c + Dy * len * 0.25 * u * u);
-          }
-        }
-        hairCtx.globalAlpha = t.fade * 0.9;
-        const width = Math.max(0.8, S * 0.0035);
-        paths.forEach((p, i) => {
-          hairCtx.strokeStyle = pal[i];
-          hairCtx.lineWidth = i === 5 ? width * 0.7 : width;
-          hairCtx.stroke(p);
-        });
+        if (t.face) updatePerson(t, count, dt, now / 1000);
+        else if (t.gfx) t.gfx.group.visible = false;
       }
-      hairCtx.globalAlpha = 1;
-      hairCtx.setTransform(1, 0, 0, 1, 0, 0);
+      renderer.render(scene, camera);
     }
 
     // ---------- Render loop ----------
@@ -1216,8 +1291,7 @@
         gl.uniform1f(uniforms.waveAt, -1.5 + 3 * waveClock);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-        drawHair(w, h, now, Math.min(0.05, Math.max(0, (now - lastNow) / 1000)));
-        drawBeard(now);
+        renderHair(w, h, now, Math.min(0.05, Math.max(0, (now - lastNow) / 1000)));
       }
       lastNow = now;
       requestAnimationFrame(render);
